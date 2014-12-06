@@ -1,0 +1,59 @@
+use strict;
+use warnings;
+
+use Test::More;
+use PDL::IO::Image;
+
+{
+  my $pimage = PDL::IO::Image->new_from_file('t/bpp-32/special/png_with_extension.png');
+  is($pimage->get_image_type, 'BITMAP', "get_image_type");
+  is($pimage->get_colors_used, 0, "get_colors_used");
+  is($pimage->get_bpp, 32, "get_bpp");
+  is($pimage->get_width,  17, "get_width");
+  is($pimage->get_height, 23, "get_height");
+  is($pimage->get_color_type, 'RGBALPHA', "get_color_type");
+  is($pimage->get_dots_per_meter_x, 2835, "get_dots_per_meter_x");
+  is($pimage->get_dots_per_meter_y, 2835, "get_dots_per_meter_y");
+  is($pimage->is_transparent, 1, "is_transparent");
+  
+  $pimage->set_dots_per_meter_x(1400);
+  $pimage->set_dots_per_meter_y(1400);
+  is($pimage->get_dots_per_meter_x, 1400, "get_dots_per_meter_x/2");
+  is($pimage->get_dots_per_meter_y, 1400, "get_dots_per_meter_y/2");
+  
+  $pimage->rescale(170, 230);
+  is($pimage->get_width,  170, "get_width/2");
+  is($pimage->get_height, 230, "get_height/2");
+  
+  $pimage->rescale(0, 23);
+  is($pimage->get_width,  17, "get_width/3");
+  is($pimage->get_height, 23, "get_height/3");
+  
+  $pimage->rescale(170, 0);
+  is($pimage->get_width,  170, "get_width/4");
+  is($pimage->get_height, 230, "get_height/4");
+  
+  $pimage->rotate(90.0);
+  is($pimage->get_width,  230, "get_width/5");
+  is($pimage->get_height, 170, "get_height/5");
+  
+  $pimage->flip_horizontal;
+  $pimage->flip_vertical;
+  is($pimage->get_width,  230, "get_width/6");
+  is($pimage->get_height, 170, "get_height/6");
+  
+  $pimage->tone_mapping(1, 2.2, 0.7);
+  $pimage->adjust_colors(0.5, 1.5, 2.5, 1);
+  
+  $pimage->convert_image_type("FLOAT");
+  is($pimage->get_image_type, 'FLOAT', "get_image_type/2");
+}
+
+{
+  my $pimage = PDL::IO::Image->new_from_file('t/bpp-8/special/8x11_8tr.gif');
+  is($pimage->get_transparent_index, 255, "get_transparent_index/1");
+  $pimage->set_transparent_index(15);
+  is($pimage->get_transparent_index, 15, "get_transparent_index/2");
+}
+
+done_testing();

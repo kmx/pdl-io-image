@@ -25,7 +25,6 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
     my $pixels_pdl = rimage($filename);
     #or
     my $pixels_pdl = rimage($filename, \%options);
-    
 
 ## rimage\_pal
 
@@ -38,19 +37,10 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
     $pixels_pdl->wimage($filename);
     #or
     $pixels_pdl->wimage($filename, \%options);
-    #or
-    $pixels_pdl->wimage($palette_pdl, $filename);
-    #or
-    $pixels_pdl->wimage($palette_pdl, $filename, \%options);
-
+    
     wimage($pixels_pdl, $filename);
     #or
     wimage($pixels_pdl, $filename, \%options);
-    #or
-    wimage($pixels_pdl, $palette_pdl, $filename);
-    #or
-    wimage($pixels_pdl, $palette_pdl, $filename, \%options);
-    
 
 # METHODS
 
@@ -69,7 +59,6 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
     my $pimage = IO::PDL::Image->new_from_pdl($pixels_pdl);
     #or
     my $pimage = IO::PDL::Image->new_from_pdl($pixels_pdl, $palette_pdl);
-    
 
 ## pixels\_to\_pdl
 
@@ -80,7 +69,6 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 ## palette\_to\_pdl
 
     my $palette_pdl = $pimage->palette_to_pdl;
-    
 
 ## save
 
@@ -116,7 +104,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 ## set\_dots\_per\_meter\_x
 
-    $self->set_dots_per_meter_x($res);
+    $pimage->set_dots_per_meter_x($res);
 
 ## get\_dots\_per\_meter\_y
 
@@ -124,7 +112,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 ## set\_dots\_per\_meter\_y
 
-    $self->set_dots_per_meter_y($res);
+    $pimage->set_dots_per_meter_y($res);
 
 ## get\_color\_type
 
@@ -140,15 +128,15 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 ## set\_transparent\_index
 
-    $self->set_transparent_index($index);
+    $pimage->set_transparent_index($index);
 
 ## flip\_horizontal
 
-    $self->flip_horizontal;
+    $pimage->flip_horizontal;
 
 ## flip\_vertical
 
-    $self->flip_vertical;
+    $pimage->flip_vertical;
 
 ## rotate
 
@@ -167,11 +155,18 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
     $pimage->convert_image_type($dst_image_type, $scale_linear);
     #or
     $pimage->convert_image_type($dst_image_type);
-    
+
+## adjust\_colors
+
+    $pimage->adjust_colors($brightness, $contrast, $gamma, $invert);
 
 ## tone\_mapping
 
     $pimage->tone_mapping($tone_mapping_operator, $param1, $param2);
+    # $tone_mapping_operator
+    #    0 = Adaptive logarithmic mapping (F. Drago, 2003)
+    #    1 = Dynamic range reduction inspired by photoreceptor physiology (E. Reinhard, 2005)
+    #    2 = Gradient domain high dynamic range compression (R. Fattal, 2002)
 
 ## free\_image\_version
 
@@ -183,7 +178,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 ## format\_extension\_list
 
-    my $ext = PDL::IO::Image->format_extension_list($format); 
+    my $ext = PDL::IO::Image->format_extension_list($format);
 
 ## format\_mime\_type
 

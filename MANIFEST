@@ -91,6 +91,8 @@ t/bpp-32/sample-bpp-32.tif
 t/bpp-32/sample-bpp-32.tiff
 t/bpp-32/sample-bpp-32.webp
 t/bpp-32/special/_source_.png
+t/bpp-32/special/png_with_extension.png
+t/bpp-32/special/png_without_extension
 t/bpp-32/special/sample-bpp-32.dds
 t/bpp-32/special/sample-bpp-32.pcx
 t/bpp-32/special/sample-bpp-32.sgi
@@ -142,6 +144,7 @@ t/bpp-8/sample-bpp-8.tga
 t/bpp-8/sample-bpp-8.tif
 t/bpp-8/sample-bpp-8.tiff
 t/bpp-8/sample-bpp-8.xpm
+t/bpp-8/special/8x11_8tr.gif
 t/bpp-8/special/_source_.png
 t/bpp-8/special/sample-bpp-8.pgm
 t/bpp-8/special/sample-bpp-8.psd
@@ -161,5 +164,6 @@ t/img-rgbaf/small.tiff
 t/img-rgbf/8x11_rgbf.hdr
 t/img-rgbf/sample-rgbf.pfm
 t/img-rgbf/small.tiff
+t/methods.t
 t/mutli-page/metacpan.ico
 typemap

@@ -77,10 +77,10 @@ void _pdl2imparams(pdl *pix, pdl *pal, FREE_IMAGE_TYPE *fit, unsigned *width, un
   *palsize = 0;
 
   if (pix == NULL) return;
-  
+
   ty = pix->datatype;
   di = pix->ndims;
-  
+
   if (pal != NULL) {
     if ( pal->datatype == PDL_B &&
          pal->ndims == 2 &&
@@ -91,7 +91,7 @@ void _pdl2imparams(pdl *pix, pdl *pal, FREE_IMAGE_TYPE *fit, unsigned *width, un
       warn("wrong palette piddle, has to be Byte[3, n] (0 < n <= 256)");
     }
   }
-   
+
   if (di == 2) {
     *width  = pix->dims[0];
     *height = pix->dims[1];
@@ -233,9 +233,9 @@ new_from_pdl(char * class, pdl * pixels, pdl * palette=NULL)
 
         dib = FreeImage_AllocateT(fit, w, h, bpp, 0, 0, 0);
         if (dib == NULL) croak("FAIL: cannot create bitmap from PDL");
-        
+
         wxh = w * h;
-        
+
         switch (fit) {
           case FIT_BITMAP:      /* Standard image: 1-, 4-, 8-, 16-, 24-, 32-bit */
             if (bpp==32) {
@@ -420,7 +420,7 @@ new_from_pdl(char * class, pdl * pixels, pdl * palette=NULL)
             warn("FAIL: unknown image type '%d'", fit);
             break;
         }
-        
+
         cu = FreeImage_GetColorsUsed(dib);
         if (palsize > 0 && cu > 0) {
           if (palsize > cu) palsize = cu;
@@ -646,8 +646,16 @@ convert_image_type(PDL::IO::Image self, SV * dst_image_type, int scale_linear=1)
             if (self->dib) FreeImage_Unload(self->dib);
             self->dib = newdib;
           }
+          else {
+            warn("FreeImage_ConvertToType (fit=%d) failed", fit);
+          }
         }
     }
+
+void
+adjust_colors(PDL::IO::Image self, double brightness=0, double contrast=0, double gamma=0, int invert=0)
+    CODE:
+        FreeImage_AdjustColors(self->dib, brightness, contrast, gamma, invert);
 
 void
 tone_mapping(PDL::IO::Image self, int tmo, double p1=0, double p2=0)
@@ -658,6 +666,9 @@ tone_mapping(PDL::IO::Image self, int tmo, double p1=0, double p2=0)
           if (newdib) {
             if (self->dib) FreeImage_Unload(self->dib);
             self->dib = newdib;
+          }
+          else {
+            warn("FreeImage_ToneMapping (tmp=%d) failed", tmo);
           }
         }
         else {
@@ -674,6 +685,9 @@ rotate(PDL::IO::Image self, double angle)
           if (self->dib) FreeImage_Unload(self->dib);
           self->dib = newdib;
         }
+        else {
+          warn("FreeImage_Rotate failed");
+        }
     }
 
 void
@@ -682,17 +696,20 @@ rescale(PDL::IO::Image self, int dst_width=0, int dst_height=0, int filter=FILTE
     {
         if (dst_height<=0 && dst_width>0) {
           double ratio = (double)dst_width / (double)FreeImage_GetWidth(self->dib);
-          dst_height   = (int)(floor(0.5 + ratio * (double)FreeImage_GetWidth(self->dib)));
+          dst_height   = (int)(floor(0.5 + ratio * (double)FreeImage_GetHeight(self->dib)));
         }
-        if (dst_width<=0 && dst_height>0) {
+        else if (dst_width<=0 && dst_height>0) {
           double ratio = (double)dst_height / (double)FreeImage_GetHeight(self->dib);
-          dst_width    = (int)(floor(0.5 + ratio * (double)FreeImage_GetHeight(self->dib)));
+          dst_width    = (int)(floor(0.5 + ratio * (double)FreeImage_GetWidth(self->dib)));
         }
         if (dst_height>0 && dst_width>0) {
           FIBITMAP *newdib = FreeImage_Rescale(self->dib, dst_width, dst_height, filter);
           if (newdib) {
             if (self->dib) FreeImage_Unload(self->dib);
             self->dib = newdib;
+          }
+          else {
+            warn("FreeImage_Rescale failed");
           }
         }
     }
@@ -1232,7 +1249,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
  my $pixels_pdl = rimage($filename);
  #or
  my $pixels_pdl = rimage($filename, \%options);
- 
+
 =head2 rimage_pal
 
  my ($pixels_pdl, $palette_pdl) = rimage($filename);
@@ -1244,21 +1261,13 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
  $pixels_pdl->wimage($filename);
  #or
  $pixels_pdl->wimage($filename, \%options);
- #or
- $pixels_pdl->wimage($palette_pdl, $filename);
- #or
- $pixels_pdl->wimage($palette_pdl, $filename, \%options);
-
+ 
  wimage($pixels_pdl, $filename);
  #or
  wimage($pixels_pdl, $filename, \%options);
- #or
- wimage($pixels_pdl, $palette_pdl, $filename);
- #or
- wimage($pixels_pdl, $palette_pdl, $filename, \%options);
- 
+
 =head1 METHODS
- 
+
 =head2 new_from_file
 
  my $pimage = IO::PDL::Image->new_from_file($filename);
@@ -1274,7 +1283,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
  my $pimage = IO::PDL::Image->new_from_pdl($pixels_pdl);
  #or
  my $pimage = IO::PDL::Image->new_from_pdl($pixels_pdl, $palette_pdl);
- 
+
 =head2 pixels_to_pdl
 
  my $pixels_pdl = $pimage->pixels_to_pdl;
@@ -1284,7 +1293,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 =head2 palette_to_pdl
 
  my $palette_pdl = $pimage->palette_to_pdl;
- 
+
 =head2 save
 
  $pimage->save($filename, $format, $flags);
@@ -1319,7 +1328,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 =head2 set_dots_per_meter_x
 
- $self->set_dots_per_meter_x($res);
+ $pimage->set_dots_per_meter_x($res);
 
 =head2 get_dots_per_meter_y
 
@@ -1327,7 +1336,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 =head2 set_dots_per_meter_y
 
- $self->set_dots_per_meter_y($res);
+ $pimage->set_dots_per_meter_y($res);
 
 =head2 get_color_type
 
@@ -1343,15 +1352,15 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 =head2 set_transparent_index
 
- $self->set_transparent_index($index);
+ $pimage->set_transparent_index($index);
 
 =head2 flip_horizontal
 
- $self->flip_horizontal;
+ $pimage->flip_horizontal;
 
 =head2 flip_vertical
 
- $self->flip_vertical;
+ $pimage->flip_vertical;
 
 =head2 rotate
 
@@ -1370,10 +1379,18 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
  $pimage->convert_image_type($dst_image_type, $scale_linear);
  #or
  $pimage->convert_image_type($dst_image_type);
- 
+
+=head2 adjust_colors
+
+ $pimage->adjust_colors($brightness, $contrast, $gamma, $invert);
+
 =head2 tone_mapping
 
  $pimage->tone_mapping($tone_mapping_operator, $param1, $param2);
+ # $tone_mapping_operator
+ #    0 = Adaptive logarithmic mapping (F. Drago, 2003)
+ #    1 = Dynamic range reduction inspired by photoreceptor physiology (E. Reinhard, 2005)
+ #    2 = Gradient domain high dynamic range compression (R. Fattal, 2002)
 
 =head2 free_image_version
 
@@ -1385,7 +1402,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 =head2 format_extension_list
 
- my $ext = PDL::IO::Image->format_extension_list($format); 
+ my $ext = PDL::IO::Image->format_extension_list($format);
 
 =head2 format_mime_type
 
