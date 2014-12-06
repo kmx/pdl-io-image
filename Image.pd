@@ -446,14 +446,14 @@ new_from_pdl(char * class, pdl * pixels, pdl * palette=NULL)
         RETVAL
 
 const char*
-free_image_version()
+free_image_version(SV *class)
     CODE:
         RETVAL = FreeImage_GetVersion();
     OUTPUT:
         RETVAL
 
 void
-format_list()
+format_list(SV *class)
     PPCODE:
     {
         int i;
@@ -466,70 +466,70 @@ format_list()
     }
 
 const char*
-format_extension_list(SV *f)
+format_extension_list(SV *class, SV *f)
     CODE:
         RETVAL = FreeImage_GetFIFExtensionList(_sv2fif(f));
     OUTPUT:
         RETVAL
 
 const char*
-format_mime_type(SV *f)
+format_mime_type(SV *class, SV *f)
     CODE:
         RETVAL = FreeImage_GetFIFMimeType(_sv2fif(f));
     OUTPUT:
         RETVAL
 
 const char*
-format_description(SV *f)
+format_description(SV *class, SV *f)
     CODE:
         RETVAL = FreeImage_GetFIFDescription(_sv2fif(f));
     OUTPUT:
         RETVAL
 
 int
-format_enabled(SV *f)
+format_can(SV *class, SV *f)
     CODE:
         RETVAL = FreeImage_IsPluginEnabled(_sv2fif(f));
     OUTPUT:
         RETVAL
 
 int
-format_can_read(SV *f)
+format_can_read(SV *class, SV *f)
     CODE:
-        RETVAL = FreeImage_FIFSupportsReading(_sv2fif(f));
+        RETVAL = FreeImage_IsPluginEnabled(_sv2fif(f)) && FreeImage_FIFSupportsReading(_sv2fif(f));
     OUTPUT:
         RETVAL
 
 int
-format_can_write(SV *f)
+format_can_write(SV *class, SV *f)
     CODE:
-        RETVAL = FreeImage_FIFSupportsWriting(_sv2fif(f));
+        RETVAL = FreeImage_IsPluginEnabled(_sv2fif(f)) && FreeImage_FIFSupportsWriting(_sv2fif(f));
     OUTPUT:
         RETVAL
 
 int
-format_can_export_type(SV *f, int type)
+format_can_export_type(SV *class, SV *f, SV *t)
     CODE:
-        RETVAL = FreeImage_FIFSupportsExportType(_sv2fif(f), type);
+        RETVAL = FreeImage_FIFSupportsExportType(_sv2fif(f), _sv2fit(t));
     OUTPUT:
         RETVAL
 
 int
-format_can_export_bpp(SV *f, int bpp)
+format_can_export_bpp(SV *class, SV *f, int bpp)
     CODE:
         RETVAL = FreeImage_FIFSupportsExportBPP(_sv2fif(f), bpp);
     OUTPUT:
         RETVAL
 
 const char *
-format_from_mime(const char *mime)
+format_from_mime(SV *class, const char *mime)
     CODE:
         RETVAL = FreeImage_GetFormatFromFIF(FreeImage_GetFIFFromMime(mime));
     OUTPUT:
         RETVAL
 
 const char *
-format_from_file(const char *filename)
+format_from_file(SV *class, const char *filename)
     CODE:
         int fif = FreeImage_GetFileType(filename, 0);
         if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
@@ -1209,7 +1209,219 @@ pp_addpm(<<'ENDPOD');
 
 PDL::IO::Image - Load/save bitmap from/to PDL (via FreeImage library)
 
-XXX-TODO add pod doc here
+=head1 SYNOPSIS
+
+XXX some code examples
+
+=head1 DESCRIPTION
+
+XXX
+
+=head2 Supported image formats
+
+XXX png, gif, tif, ...
+
+=head2 Supported image types
+
+XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
+
+=head1 FUNCTIONS
+
+=head2 rimage
+
+ my $pixels_pdl = rimage($filename);
+ #or
+ my $pixels_pdl = rimage($filename, \%options);
+ 
+=head2 rimage_pal
+
+ my ($pixels_pdl, $palette_pdl) = rimage($filename);
+ #or
+ my ($pixels_pdl, $palette_pdl) = rimage($filename, \%options);
+
+=head2 wimage
+
+ $pixels_pdl->wimage($filename);
+ #or
+ $pixels_pdl->wimage($filename, \%options);
+ #or
+ $pixels_pdl->wimage($palette_pdl, $filename);
+ #or
+ $pixels_pdl->wimage($palette_pdl, $filename, \%options);
+
+ wimage($pixels_pdl, $filename);
+ #or
+ wimage($pixels_pdl, $filename, \%options);
+ #or
+ wimage($pixels_pdl, $palette_pdl, $filename);
+ #or
+ wimage($pixels_pdl, $palette_pdl, $filename, \%options);
+ 
+=head1 METHODS
+ 
+=head2 new_from_file
+
+ my $pimage = IO::PDL::Image->new_from_file($filename);
+ #or
+ my $pimage = IO::PDL::Image->new_from_file($filename, $filetype);
+ #or
+ my $pimage = IO::PDL::Image->new_from_file($filename, $filetype, $flags);
+ #or
+ my $pimage = IO::PDL::Image->new_from_file($filename, $filetype, $flags, $page);
+
+=head2 new_from_pdl
+
+ my $pimage = IO::PDL::Image->new_from_pdl($pixels_pdl);
+ #or
+ my $pimage = IO::PDL::Image->new_from_pdl($pixels_pdl, $palette_pdl);
+ 
+=head2 pixels_to_pdl
+
+ my $pixels_pdl = $pimage->pixels_to_pdl;
+ #or
+ my $pixels_pdl = $pimage->pixels_to_pdl($x1, $x2, $y1, $y2);
+
+=head2 palette_to_pdl
+
+ my $palette_pdl = $pimage->palette_to_pdl;
+ 
+=head2 save
+
+ $pimage->save($filename, $format, $flags);
+ #or
+ $pimage->save($filename, $format);
+ #or
+ $pimage->save($filename);
+
+=head2 get_image_type
+
+ my $imtype = $pimage->get_image_type;
+
+=head2 get_colors_used
+
+ my $colors = $pimage->get_colors_used;
+
+=head2 get_bpp
+
+ my $bpp = $pimage->get_bpp;
+
+=head2 get_width
+
+ my $w = $pimage->get_width;
+
+=head2 get_height
+
+ my $h = $pimage->get_height;
+
+=head2 get_dots_per_meter_x
+
+ my $dpmx = $pimage->get_dots_per_meter_x;
+
+=head2 set_dots_per_meter_x
+
+ $self->set_dots_per_meter_x($res);
+
+=head2 get_dots_per_meter_y
+
+ my $dpmy = $pimage->get_dots_per_meter_y;
+
+=head2 set_dots_per_meter_y
+
+ $self->set_dots_per_meter_y($res);
+
+=head2 get_color_type
+
+ my $coltype = $pimage->get_color_type;
+
+=head2 is_transparent
+
+ my $bool = $pimage->is_transparent;
+
+=head2 get_transparent_index
+
+ my $idx = $pimage->get_transparent_index;
+
+=head2 set_transparent_index
+
+ $self->set_transparent_index($index);
+
+=head2 flip_horizontal
+
+ $self->flip_horizontal;
+
+=head2 flip_vertical
+
+ $self->flip_vertical;
+
+=head2 rotate
+
+ $pimage->rotate($angle);
+
+=head2 rescale
+
+ $pimage->rescale($dst_width, $dst_height, $filter);
+ #or
+ $pimage->rescale($dst_width);
+ #or
+ $pimage->rescale(undef, $dst_height);
+
+=head2 convert_image_type
+
+ $pimage->convert_image_type($dst_image_type, $scale_linear);
+ #or
+ $pimage->convert_image_type($dst_image_type);
+ 
+=head2 tone_mapping
+
+ $pimage->tone_mapping($tone_mapping_operator, $param1, $param2);
+
+=head2 free_image_version
+
+ my $v = PDL::IO::Image->free_image_version();
+
+=head2 format_list
+
+ my @f = PDL::IO::Image->format_list();
+
+=head2 format_extension_list
+
+ my $ext = PDL::IO::Image->format_extension_list($format); 
+
+=head2 format_mime_type
+
+ my $mtype = PDL::IO::Image->format_mime_type($format);
+
+=head2 format_description
+
+ my $desc = PDL::IO::Image->format_description($format);
+
+=head2 format_can
+
+ my $bool = PDL::IO::Image->format_can($format);
+
+=head2 format_can_read
+
+ my $bool = PDL::IO::Image->format_can_read($format);
+
+=head2 format_can_write
+
+ my $bool = PDL::IO::Image->format_can_write($format);
+
+=head2 format_can_export_type
+
+ my $bool = PDL::IO::Image->format_can_export_type($format, $imgtype);
+
+=head2 format_can_export_bpp
+
+ my $bool = PDL::IO::Image->format_can_export_bpp($format, $bpp);
+
+=head2 format_from_mime
+
+ my $format = PDL::IO::Image->format_from_mime($mime_type);
+
+=head2 format_from_file
+
+ my $format = PDL::IO::Image->format_from_file($filename);
 
 =cut
 ENDPOD

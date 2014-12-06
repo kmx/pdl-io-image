@@ -6,7 +6,7 @@ use Alien::FreeImage;
 my $package = [qw/Image.pd Image PDL::IO::Image/];
 my %eumm_args = pdlpp_stdargs($package);
 
-$eumm_args{INC} .= Alien::FreeImage->config('INC') . "-Wall";
+$eumm_args{INC} .= Alien::FreeImage->config('INC');
 push @{$eumm_args{LIBS}}, Alien::FreeImage->config('LIBS');
 push @{$eumm_args{TYPEMAPS}}, 'typemap';
 
