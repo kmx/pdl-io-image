@@ -8,12 +8,17 @@ use Test::Number::Delta relative=>0.0001;
 
 my $expected = [
   [0, 1, 2, 2, 2, 2, 2, 1, 1, 2, 3, 3, 2],
-  [1, 1, 2, 1, 4, 2, 1, 0 .. 3, 1, 2],
+  [1, 1, 2, 1, 4, 2, 1, 0, 1, 2, 3, 1, 2],
   [1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2],
   [2, 0, 2, 2, 5, 2, 2, 6, 2, 2, 6, 2, 2],
   [1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 7, 2],
   [1, 1, 4, 1, 4, 2, 6, 1, 6, 2, 1, 2, 7],
   [2, 5, 2, 1, 2, 2, 2, 6, 1, 2, 1, 7, 2],
+];
+
+my $expected_region = [
+  [1, 2, 1, 1, 2, 1, 1, 1],
+  [0, 2, 2, 5, 2, 2, 6, 2],
 ];
 
 for my $file (<t/bpp-4/*.*>) {
@@ -28,6 +33,15 @@ for my $file (<t/bpp-4/*.*>) {
   is($pix->info, 'PDL: Byte D [13,7]', "info: $file");
   is($pix->sum, 192, "sum: $file");
   delta_ok($pix->unpdl, $expected, "pixels: $file");
+  #region
+  $pix = $pimage->pixels_to_pdl(1,8,2,3);
+  is($pix->info, 'PDL: Byte D [8,2]',     "reg.info: $file");
+  is($pix->sum, 31,                       "reg.sum: $file");
+  delta_ok($pix->unpdl, $expected_region, "reg.pixels: $file");
+  $pix = $pimage->pixels_to_pdl(1,-4,2,-3);
+  is($pix->info, 'PDL: Byte D [8,2]',     "regneg.info: $file");
+  is($pix->sum, 31,                       "regneg.sum: $file");
+  delta_ok($pix->unpdl, $expected_region, "regneg.pixels: $file");
 }
 
 done_testing();

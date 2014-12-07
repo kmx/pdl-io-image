@@ -8,7 +8,6 @@ my @l = PDL::IO::Image->format_list;
 ok(scalar(@l) > 10, "format_list");
 
 like(PDL::IO::Image->free_image_version, qr/^\d+\.\d+\.\d+/, "free_image_version");
-ok  (PDL::IO::Image->format_can('png'), "format_can");
 ok  (PDL::IO::Image->format_can_read('png'), "format_can_read");
 ok  (PDL::IO::Image->format_can_write('png'), "format_can_write");
 ok  (PDL::IO::Image->format_can_export_type('png', 'RGBA16'), "format_can_export_type");

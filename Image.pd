@@ -1,4 +1,5 @@
 use strict;
+use strict;
 use warnings;
 our $VERSION = '0.001';
 
@@ -487,13 +488,6 @@ format_description(SV *class, SV *f)
         RETVAL
 
 int
-format_can(SV *class, SV *f)
-    CODE:
-        RETVAL = FreeImage_IsPluginEnabled(_sv2fif(f));
-    OUTPUT:
-        RETVAL
-
-int
 format_can_read(SV *class, SV *f)
     CODE:
         RETVAL = FreeImage_IsPluginEnabled(_sv2fif(f)) && FreeImage_FIFSupportsReading(_sv2fif(f));
@@ -696,11 +690,38 @@ rescale(PDL::IO::Image self, int dst_width=0, int dst_height=0, int filter=FILTE
     {
         if (dst_height<=0 && dst_width>0) {
           double ratio = (double)dst_width / (double)FreeImage_GetWidth(self->dib);
-          dst_height   = (int)(floor(0.5 + ratio * (double)FreeImage_GetHeight(self->dib)));
+          dst_height   = (int)floor(0.5 + ratio * (double)FreeImage_GetHeight(self->dib));
         }
         else if (dst_width<=0 && dst_height>0) {
           double ratio = (double)dst_height / (double)FreeImage_GetHeight(self->dib);
-          dst_width    = (int)(floor(0.5 + ratio * (double)FreeImage_GetWidth(self->dib)));
+          dst_width    = (int)floor(0.5 + ratio * (double)FreeImage_GetWidth(self->dib));
+        }
+        if (dst_height>0 && dst_width>0) {
+          FIBITMAP *newdib = FreeImage_Rescale(self->dib, dst_width, dst_height, filter);
+          if (newdib) {
+            if (self->dib) FreeImage_Unload(self->dib);
+            self->dib = newdib;
+          }
+          else {
+            warn("FreeImage_Rescale failed");
+          }
+        }
+    }
+
+void
+rescale_pct(PDL::IO::Image self, double dst_width_pct=0, double dst_height_pct=0, int filter=FILTER_CATMULLROM)
+    CODE:
+    {
+        int dst_height = (int)floor(0.5 + (double)FreeImage_GetHeight(self->dib) * dst_height_pct / 100.0);
+        int dst_width  = (int)floor(0.5 + (double)FreeImage_GetWidth(self->dib)  * dst_width_pct  / 100.0);
+        
+        if (dst_height<=0 && dst_width>0) {
+          double ratio = (double)dst_width / (double)FreeImage_GetWidth(self->dib);
+          dst_height   = (int)floor(0.5 + ratio * (double)FreeImage_GetHeight(self->dib));
+        }
+        else if (dst_width<=0 && dst_height>0) {
+          double ratio = (double)dst_height / (double)FreeImage_GetHeight(self->dib);
+          dst_width    = (int)floor(0.5 + ratio * (double)FreeImage_GetWidth(self->dib));
         }
         if (dst_height>0 && dst_width>0) {
           FIBITMAP *newdib = FreeImage_Rescale(self->dib, dst_width, dst_height, filter);
@@ -756,29 +777,39 @@ palette_to_pdl(PDL::IO::Image self)
         RETVAL
 
 pdl*
-pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsigned long y1=0, unsigned long y2=0)
+pixels_to_pdl(PDL::IO::Image self, long x1=0, long x2=0, long y1=0, long y2=0)
     CODE:
     {
         pdl *bmp_pdl = NULL;
         PDL_Indx dims[] = {0, 0, 0};
         PDL_Indx x, y, wxh;
-        unsigned long w, h;
+        unsigned long w, h, wp, hp;
         int bpp, it;
 
         w   = FreeImage_GetWidth(self->dib);
         h   = FreeImage_GetHeight(self->dib);
         bpp = FreeImage_GetBPP(self->dib);
         it  = FreeImage_GetImageType(self->dib);
+        wp  = w;
+        hp  = h;
 
-        /* handle region selection */
-        if (x1 > 0) w -= x1;
-        if (y1 > 0) h -= y1;
-        if (x2 > x1 && w > (x2 - x1)) w = (x2 - x1);
-        if (y2 > y1 && h > (y2 - y1)) h = (y2 - y1);
-        wxh = w * h;
-
-        if (!FreeImage_HasPixels(self->dib)) {
+        if (!FreeImage_HasPixels(self->dib) || w == 0 || h == 0) {
           warn("FAIL: no pixels");
+          XSRETURN_UNDEF;
+        }
+
+        /* handle negative boundaries */
+        if (x1 < 0)  x1 = w - 1 + x1;
+        if (y1 < 0)  y1 = h - 1 + y1;
+        if (x2 <= 0) x2 = w - 1 + x2;
+        if (y2 <= 0) y2 = h - 1 + y2;
+        /* handle region selection */
+        wp = (x2 - x1 + 1);
+        hp = (y2 - y1 + 1);
+        wxh = wp * hp;
+        
+        if (x1>x2 || y1>y2 || x1<0 || y1<0 || x2<0 || y2<0 || wp>w || hp>h) {
+          warn("FAIL: invalid region");
           XSRETURN_UNDEF;
         }
 
@@ -786,48 +817,48 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_BITMAP:      /* Standard image: 1-, 4-, 8-, 16-, 24-, 32-bit */
             if (bpp==32) {
               PDL_Byte *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 4;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_B;
               PDL->setdims (bmp_pdl, dims, 3);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Byte *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                RGBQUAD *bits = (RGBQUAD*) FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x]         = (PDL_Byte) bits[x+x1].rgbRed;
-                  pdata[(h-1-y)*w + x + wxh]   = (PDL_Byte) bits[x+x1].rgbGreen;
-                  pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Byte) bits[x+x1].rgbBlue;
-                  pdata[(h-1-y)*w + x + 3*wxh] = (PDL_Byte) bits[x+x1].rgbReserved;
+              for(y = 0; y < hp; y++) {
+                RGBQUAD *bits = (RGBQUAD*) FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x]         = (PDL_Byte) bits[x+x1].rgbRed;
+                  pdata[y*wp + x + wxh]   = (PDL_Byte) bits[x+x1].rgbGreen;
+                  pdata[y*wp + x + 2*wxh] = (PDL_Byte) bits[x+x1].rgbBlue;
+                  pdata[y*wp + x + 3*wxh] = (PDL_Byte) bits[x+x1].rgbReserved;
                 }
               }
             }
             else if (bpp==24) {
               PDL_Byte *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 3;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_B;
               PDL->setdims (bmp_pdl, dims, 3);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Byte *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                RGBTRIPLE *bits = (RGBTRIPLE*) FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x]         = (PDL_Byte) bits[x+x1].rgbtRed;
-                  pdata[(h-1-y)*w + x + wxh]   = (PDL_Byte) bits[x+x1].rgbtGreen;
-                  pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Byte) bits[x+x1].rgbtBlue;
+              for(y = 0; y < hp; y++) {
+                RGBTRIPLE *bits = (RGBTRIPLE*) FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x]         = (PDL_Byte) bits[x+x1].rgbtRed;
+                  pdata[y*wp + x + wxh]   = (PDL_Byte) bits[x+x1].rgbtGreen;
+                  pdata[y*wp + x + 2*wxh] = (PDL_Byte) bits[x+x1].rgbtBlue;
                 }
               }
             }
             else if (bpp==16) {
               unsigned red_mask, green_mask, blue_mask;
               PDL_Byte *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 3;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_B;
@@ -838,71 +869,71 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
               green_mask = FreeImage_GetGreenMask(self->dib);
               blue_mask  = FreeImage_GetBlueMask(self->dib);
               if ( (red_mask == FI16_565_RED_MASK) && (green_mask == FI16_565_GREEN_MASK) && (blue_mask == FI16_565_BLUE_MASK) ) {
-                for(y = 0; y < h; y++) {
-                  WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, y+y1);
-                  for(x = 0; x < w; x++) {
-                    pdata[(h-1-y)*w + x]         = (PDL_Byte) ((bits[x+x1] & FI16_565_RED_MASK)   >> FI16_565_RED_SHIFT);
-                    pdata[(h-1-y)*w + x + wxh]   = (PDL_Byte) ((bits[x+x1] & FI16_565_GREEN_MASK) >> FI16_565_GREEN_SHIFT);
-                    pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Byte) ((bits[x+x1] & FI16_565_BLUE_MASK)  >> FI16_565_BLUE_SHIFT);
+                for(y = 0; y < hp; y++) {
+                  WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                  for(x = 0; x < wp; x++) {
+                    pdata[y*wp + x]         = (PDL_Byte) ((bits[x+x1] & FI16_565_RED_MASK)   >> FI16_565_RED_SHIFT);
+                    pdata[y*wp + x + wxh]   = (PDL_Byte) ((bits[x+x1] & FI16_565_GREEN_MASK) >> FI16_565_GREEN_SHIFT);
+                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) ((bits[x+x1] & FI16_565_BLUE_MASK)  >> FI16_565_BLUE_SHIFT);
                   }
                 }
               }
               else {
-                for(y = 0; y < h; y++) {
-                  WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, y+y1);
-                  for(x = 0; x < w; x++) {
-                    pdata[(h-1-y)*w + x]         = (PDL_Byte) ((bits[x+x1] & FI16_555_RED_MASK)   >> FI16_555_RED_SHIFT);
-                    pdata[(h-1-y)*w + x + wxh]   = (PDL_Byte) ((bits[x+x1] & FI16_555_GREEN_MASK) >> FI16_555_GREEN_SHIFT);
-                    pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Byte) ((bits[x+x1] & FI16_555_BLUE_MASK)  >> FI16_555_BLUE_SHIFT);
+                for(y = 0; y < hp; y++) {
+                  WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                  for(x = 0; x < wp; x++) {
+                    pdata[y*wp + x]         = (PDL_Byte) ((bits[x+x1] & FI16_555_RED_MASK)   >> FI16_555_RED_SHIFT);
+                    pdata[y*wp + x + wxh]   = (PDL_Byte) ((bits[x+x1] & FI16_555_GREEN_MASK) >> FI16_555_GREEN_SHIFT);
+                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) ((bits[x+x1] & FI16_555_BLUE_MASK)  >> FI16_555_BLUE_SHIFT);
                   }
                 }
               }
             }
             else if (bpp==8) {
               PDL_Byte *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_B;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Byte *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                BYTE *bits = FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = (PDL_Byte) bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                BYTE *bits = FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = (PDL_Byte) bits[x+x1];
                 }
               }
             }
             else if (bpp==4) {
               PDL_Byte *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_B;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Byte *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                BYTE *bits = FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = (PDL_Byte) ((bits[(x+x1)/2] >> 4*(1-(x+x1)%2)) & 0x0F);
+              for(y = 0; y < hp; y++) {
+                BYTE *bits = FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = (PDL_Byte) ((bits[(x+x1)/2] >> 4*(1-(x+x1)%2)) & 0x0F);
                 }
               }
             }
             else if (bpp==1) {
               PDL_Byte *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_B;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Byte *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                BYTE *bits = FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = (PDL_Byte) ((bits[(x+x1)/8] >> (7-(x+x1)%8)) & 0x01);
+              for(y = 0; y < hp; y++) {
+                BYTE *bits = FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = (PDL_Byte) ((bits[(x+x1)/8] >> (7-(x+x1)%8)) & 0x01);
                 }
               }
             }
@@ -913,18 +944,18 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_UINT16:      /* Array of unsigned short: unsigned 16-bit */
             {
               PDL_Ushort *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_US;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Ushort *) bmp_pdl->data;
 
-              for(y = 0; y < h; y++) {
-                PDL_Ushort *bits = (PDL_Ushort*)FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                PDL_Ushort *bits = (PDL_Ushort*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = bits[x+x1];
                 }
               }
             }
@@ -932,17 +963,17 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_INT16:       /* Array of short: signed 16-bit */
             {
               PDL_Short *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_S;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Short *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                PDL_Short *bits = (PDL_Short*)FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                PDL_Short *bits = (PDL_Short*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = bits[x+x1];
                 }
               }
             }
@@ -950,17 +981,17 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_UINT32:      /* Array of unsigned long: unsigned 32-bit */
             { /* XXX-TODO hack: using INT64 for UINT32 */
               PDL_LongLong *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_LL;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_LongLong *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                DWORD *bits = (DWORD*)FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = (PDL_LongLong)bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                DWORD *bits = (DWORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = (PDL_LongLong)bits[x+x1];
                 }
               }
             }
@@ -968,17 +999,17 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_INT32:       /* Array of long: signed 32-bit */
             {
               PDL_Long *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_L;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Long *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                PDL_Long *bits = (PDL_Long*)FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                PDL_Long *bits = (PDL_Long*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = bits[x+x1];
                 }
               }
             }
@@ -986,17 +1017,17 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_FLOAT:       /* Array of float: 32-bit IEEE floating point */
             {
               PDL_Float *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_F;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Float *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                PDL_Float *bits = (PDL_Float*)FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                PDL_Float *bits = (PDL_Float*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = bits[x+x1];
                 }
               }
             }
@@ -1004,28 +1035,28 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_DOUBLE:      /* Array of double: 64-bit IEEE floating point */
             {
               PDL_Double *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_D;
               PDL->setdims (bmp_pdl, dims, 2);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Double *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                PDL_Double *bits = (PDL_Double*)FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x] = bits[x+x1];
+              for(y = 0; y < hp; y++) {
+                PDL_Double *bits = (PDL_Double*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x] = bits[x+x1];
                 }
               }
             }
             break;
           case FIT_COMPLEX:     /* Array of FICOMPLEX: 2 x 64-bit IEEE floating point */
             warn("FAIL: FIT_COMPLEX not supported");
-            /* for(y = 0; y < h; y++) {
-             *   FICOMPLEX *bits = (FICOMPLEX *)FreeImage_GetScanLine(self->dib, y+y1);
-             *   for(x = 0; x < w; x++) {
-             *     pdata[(h-1-y)*w + x] = (PDL_Double) bits[x+x1].r;
-             *     pdata[(h-1-y)*w + x] = (PDL_Double) bits[x+x1].i;
+            /* for(y = 0; y < hp; y++) {
+             *   FICOMPLEX *bits = (FICOMPLEX *)FreeImage_GetScanLine(self->dib, h-y-1-y1);
+             *   for(x = 0; x < wp; x++) {
+             *     pdata[y*wp + x] = (PDL_Double) bits[x+x1].r;
+             *     pdata[y*wp + x] = (PDL_Double) bits[x+x1].i;
              *   }
              * }
              */
@@ -1033,20 +1064,20 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_RGB16:       /* 48-bit RGB image: 3 x 16-bit */
             {
               PDL_Ushort *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 3;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_US;
               PDL->setdims (bmp_pdl, dims, 3);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Ushort *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                FIRGB16 *bits = (FIRGB16*) FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x]         = (PDL_Ushort) bits[x+x1].red;
-                  pdata[(h-1-y)*w + x + wxh]   = (PDL_Ushort) bits[x+x1].green;
-                  pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Ushort) bits[x+x1].blue;
+              for(y = 0; y < hp; y++) {
+                FIRGB16 *bits = (FIRGB16*) FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x]         = (PDL_Ushort) bits[x+x1].red;
+                  pdata[y*wp + x + wxh]   = (PDL_Ushort) bits[x+x1].green;
+                  pdata[y*wp + x + 2*wxh] = (PDL_Ushort) bits[x+x1].blue;
                 }
               }
             }
@@ -1054,21 +1085,21 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_RGBA16:      /* 64-bit RGBA image: 4 x 16-bit */
             {
               PDL_Ushort *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 4;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_US;
               PDL->setdims (bmp_pdl, dims, 3);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Ushort *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                FIRGBA16 *bits = (FIRGBA16*) FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x]         = (PDL_Ushort) bits[x+x1].red;
-                  pdata[(h-1-y)*w + x + wxh]   = (PDL_Ushort) bits[x+x1].green;
-                  pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Ushort) bits[x+x1].blue;
-                  pdata[(h-1-y)*w + x + 3*wxh] = (PDL_Ushort) bits[x+x1].alpha;
+              for(y = 0; y < hp; y++) {
+                FIRGBA16 *bits = (FIRGBA16*) FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x]         = (PDL_Ushort) bits[x+x1].red;
+                  pdata[y*wp + x + wxh]   = (PDL_Ushort) bits[x+x1].green;
+                  pdata[y*wp + x + 2*wxh] = (PDL_Ushort) bits[x+x1].blue;
+                  pdata[y*wp + x + 3*wxh] = (PDL_Ushort) bits[x+x1].alpha;
                 }
               }
             }
@@ -1076,20 +1107,20 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_RGBF:        /* 96-bit RGB float image: 3 x 32-bit IEEE floating point */
             {
               PDL_Float *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 3;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_F;
               PDL->setdims (bmp_pdl, dims, 3);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Float *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                FIRGBF *bits = (FIRGBF*) FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x]         = (PDL_Float) bits[x+x1].red;
-                  pdata[(h-1-y)*w + x + wxh]   = (PDL_Float) bits[x+x1].green;
-                  pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Float) bits[x+x1].blue;
+              for(y = 0; y < hp; y++) {
+                FIRGBF *bits = (FIRGBF*) FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x]         = (PDL_Float) bits[x+x1].red;
+                  pdata[y*wp + x + wxh]   = (PDL_Float) bits[x+x1].green;
+                  pdata[y*wp + x + 2*wxh] = (PDL_Float) bits[x+x1].blue;
                 }
               }
             }
@@ -1097,21 +1128,21 @@ pixels_to_pdl(PDL::IO::Image self, unsigned long x1=0, unsigned long x2=0, unsig
           case FIT_RGBAF:       /* 128-bit RGBA float image: 4 x 32-bit IEEE floating point */
             {
               PDL_Float *pdata;
-              dims[0] = w;
-              dims[1] = h;
+              dims[0] = wp;
+              dims[1] = hp;
               dims[2] = 4;
               bmp_pdl = PDL->pdlnew();
               bmp_pdl->datatype = PDL_F;
               PDL->setdims (bmp_pdl, dims, 3);
               PDL->allocdata (bmp_pdl);
               pdata = (PDL_Float *) bmp_pdl->data;
-              for(y = 0; y < h; y++) {
-                FIRGBAF *bits = (FIRGBAF*) FreeImage_GetScanLine(self->dib, y+y1);
-                for(x = 0; x < w; x++) {
-                  pdata[(h-1-y)*w + x]         = (PDL_Float) bits[x+x1].red;
-                  pdata[(h-1-y)*w + x + wxh]   = (PDL_Float) bits[x+x1].green;
-                  pdata[(h-1-y)*w + x + 2*wxh] = (PDL_Float) bits[x+x1].blue;
-                  pdata[(h-1-y)*w + x + 3*wxh] = (PDL_Float) bits[x+x1].alpha;
+              for(y = 0; y < hp; y++) {
+                FIRGBAF *bits = (FIRGBAF*) FreeImage_GetScanLine(self->dib, h-y-1-y1);
+                for(x = 0; x < wp; x++) {
+                  pdata[y*wp + x]         = (PDL_Float) bits[x+x1].red;
+                  pdata[y*wp + x + wxh]   = (PDL_Float) bits[x+x1].green;
+                  pdata[y*wp + x + 2*wxh] = (PDL_Float) bits[x+x1].blue;
+                  pdata[y*wp + x + 3*wxh] = (PDL_Float) bits[x+x1].alpha;
                 }
               }
             }
@@ -1137,17 +1168,71 @@ DESTROY(self)
 ENDXS
 
 ############################################################### PM part
-###pp_add_exported('pm_demo');
+pp_add_exported('rimage', 'wimage');
 pp_addpm( <<'ENDPM' );
 use strict;
 use warnings;
 use Carp;
 
-sub pm_demo {
-  warn "pm_demo\n";
-  warn "ref(self)=",ref($_[0]),"\n";
-  return 12345;
+sub _val2list {
+  return @{$_[0]} if ref $_[0] eq 'ARRAY';
+  return $_[0];
+};
+
+sub rimage {
+  my $options = ref $_[-1] eq 'HASH' ? pop : {};
+  my $filename = shift;
+  $options->{format} = "AUTO" unless defined $options->{format};
+  $options->{format_flag} = 0 unless defined $options->{format_flag};
+  $options->{page} = 0        unless defined $options->{page};
+  my $pimage = PDL::IO::Image->new_from_file($filename, $options->{format}, $options->{format_flag}, $options->{page});
+
+  if (my $flip = $options->{flip}) {
+    $pimage->flip_horizontal if $flip =~ /H/;
+    $pimage->flip_vertical   if $flip =~ /V/;
+  }
+  if (defined $options->{convert_image_type}) {
+    $pimage->convert_image_type(_val2list($options->{convert_image_type}));
+  }
+
+  $options->{region} = [] unless ref $options->{region} eq 'ARRAY';
+  if ($options->{palette}) {
+    return ($pimage->pixels_to_pdl(@{$options->{region}}), $pimage->palette_to_pdl);
+  }
+  return $pimage->pixels_to_pdl(@{$options->{region}});
 }
+
+sub wimage {
+  my $options = ref $_[-1] eq 'HASH' ? pop : {};
+  my ($pixels, $filename) = @_;
+  my $palette = $options->{palette} if ref $options->{palette} eq 'PDL';
+  my $pimage = defined $palette ?
+               PDL::IO::Image->new_from_pdl($pixels, $palette) :
+               PDL::IO::Image->new_from_pdl($pixels);
+
+  if (my $flip = $options->{flip}) {
+    $pimage->flip_horizontal if $flip =~ /H/;
+    $pimage->flip_vertical   if $flip =~ /V/;
+  }
+  if (defined $options->{rotate}) {
+    $pimage->rotate(_val2list($options->{rotate}));
+  }
+  if (defined $options->{rescale}) {
+    $pimage->rescale(_val2list($options->{rescale}));
+  }
+  if (defined $options->{rescale_pct}) {
+    $pimage->rescale_pct(_val2list($options->{rescale_pct}));
+  }
+  if (defined $options->{convert_image_type}) {
+    $pimage->convert_image_typeconvert_image_type(_val2list($options->{convert_image_type}));
+  }
+
+  $options->{format} = "AUTO" unless defined $options->{format};
+  $options->{format_flag} = 0 unless defined $options->{format_flag};
+  $pimage->save($filename, $options->{format}, $options->{format_flag});
+  return $pixels;
+}
+
 ENDPM
 
 ############################################################### Constants part
@@ -1249,12 +1334,8 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
  my $pixels_pdl = rimage($filename);
  #or
  my $pixels_pdl = rimage($filename, \%options);
-
-=head2 rimage_pal
-
- my ($pixels_pdl, $palette_pdl) = rimage($filename);
  #or
- my ($pixels_pdl, $palette_pdl) = rimage($filename, \%options);
+ my ($pixels_pdl, $palette_pdl) = rimage($filename, { palette=>1 });
 
 =head2 wimage
 
@@ -1370,9 +1451,17 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
  $pimage->rescale($dst_width, $dst_height, $filter);
  #or
- $pimage->rescale($dst_width);
+ $pimage->rescale($dst_width, 0);
  #or
- $pimage->rescale(undef, $dst_height);
+ $pimage->rescale(0, $dst_height);
+
+=head2 rescale_pct
+
+ $pimage->rescale($dst_width_pct, $dst_height_pct, $filter);
+ #or
+ $pimage->rescale($dst_width_pct, 0);
+ #or
+ $pimage->rescale(0, $dst_height_pct);
 
 =head2 convert_image_type
 
@@ -1411,10 +1500,6 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 =head2 format_description
 
  my $desc = PDL::IO::Image->format_description($format);
-
-=head2 format_can
-
- my $bool = PDL::IO::Image->format_can($format);
 
 =head2 format_can_read
 

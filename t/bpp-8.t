@@ -16,6 +16,11 @@ my $expected = [
   [78 .. 90],
 ];
 
+my $expected_region = [
+  [27 .. 34],
+  [40 .. 47],
+];
+
 for my $file (<t/bpp-8/*.*>) {
   my $pimage = PDL::IO::Image->new_from_file($file);
   is($pimage->get_image_type , "BITMAP", "get_image_type: $file");
@@ -28,6 +33,17 @@ for my $file (<t/bpp-8/*.*>) {
   is($pix->info, 'PDL: Byte D [13,7]', "info: $file");
   is($pix->sum, 4095, "sum: $file");
   delta_ok($pix->unpdl, $expected, "pixels: $file");
+  #wread
+  delta_ok(rimage($file)->unpdl, $expected, "pixels: $file");
+  #region
+  $pix = $pimage->pixels_to_pdl(1,8,2,3);
+  is($pix->info, 'PDL: Byte D [8,2]',     "reg.info: $file");
+  is($pix->sum, 592,                       "reg.sum: $file");
+  delta_ok($pix->unpdl, $expected_region, "reg.pixels: $file");
+  $pix = $pimage->pixels_to_pdl(1,-4,2,-3);
+  is($pix->info, 'PDL: Byte D [8,2]',     "regneg.info: $file");
+  is($pix->sum, 592,                       "regneg.sum: $file");
+  delta_ok($pix->unpdl, $expected_region, "regneg.pixels: $file");
 }
 
 done_testing();

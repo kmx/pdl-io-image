@@ -75,4 +75,25 @@ for ([$pix256, $pal256], [$pix16, $pal16]) {
   unlink $fname;
 }
 
+for my $p1 (@pdls) {
+  my $fname = "tmp-$$.tiff";
+  wimage($p1, $fname);
+  my $p2 = rimage($fname);
+  is($p2->info, $p1->info);
+  delta_ok($p2->unpdl, $p1->unpdl);
+  unlink $fname;
+}
+
+for ([$pix256, $pal256], [$pix16, $pal16]) {
+  my ($p1, $c1) = @$_;
+  my $fname = "tmp-$$.tiff";
+  wimage($p1, $fname, {palette=>$c1});
+  my ($p2, $c2) = rimage($fname, {palette=>1});
+  is($p2->info, $p1->info);
+  delta_ok($p2->unpdl, $p1->unpdl);
+  is($c2->info, $c1->info);
+  delta_ok($c2->unpdl, $c1->unpdl);
+  unlink $fname;
+}
+
 done_testing();
