@@ -7,6 +7,9 @@ use PDL::IO::Image;
 use Test::More;
 use Test::Number::Delta relative=>0.0001;
 
+use File::Temp 'tempdir';
+my $tmpdir = tempdir("test-XXXXX", CLEANUP => 1);
+
 my $pal256 = (random(3, 256) * 256)->byte;      # BITMAP bpp=8
 my $pix256 = (random(17, 23) * 256)->byte;
 
@@ -31,7 +34,7 @@ my @pdls = (
 
 for my $p1 (@pdls) {
   my $im1 = PDL::IO::Image->new_from_pdl($p1);
-  my $fname = "tmp-" . $im1->get_image_type . "_" . $im1->get_bpp . ".tiff";
+  my $fname = "$tmpdir/test-" . $im1->get_image_type . "_" . $im1->get_bpp . ".tiff";
   $im1->save($fname);
   my $im2 = PDL::IO::Image->new_from_file($fname);
 
@@ -52,7 +55,7 @@ for my $p1 (@pdls) {
 for ([$pix256, $pal256], [$pix16, $pal16]) {
   my ($p1, $c1) = @$_;
   my $im1 = PDL::IO::Image->new_from_pdl($p1, $c1);
-  my $fname = "tmp-" . $im1->get_image_type . "_" . $im1->get_bpp . "_pal.tiff";
+  my $fname = "$tmpdir/test-" . $im1->get_image_type . "_" . $im1->get_bpp . "_pal.tiff";
   $im1->save($fname);
   my $im2 = PDL::IO::Image->new_from_file($fname);
   
@@ -72,28 +75,27 @@ for ([$pix256, $pal256], [$pix16, $pal16]) {
   is($im2->get_bpp,         $im1->get_bpp);
   is($im2->get_width,       $im1->get_width);
   is($im2->get_height,      $im1->get_height);
-  unlink $fname;
 }
 
 for my $p1 (@pdls) {
-  my $fname = "tmp-$$.tiff";
+  my $fname = "$tmpdir/test.tiff";
   wimage($p1, $fname);
+  #$p1->wimage($fname);
   my $p2 = rimage($fname);
   is($p2->info, $p1->info);
   delta_ok($p2->unpdl, $p1->unpdl);
-  unlink $fname;
 }
 
 for ([$pix256, $pal256], [$pix16, $pal16]) {
   my ($p1, $c1) = @$_;
-  my $fname = "tmp-$$.tiff";
-  wimage($p1, $fname, {palette=>$c1});
+  my $fname = "$tmpdir/test.tiff";
+  #wimage($p1, $fname, {palette=>$c1});
+  $p1->wimage($fname, {palette=>$c1});
   my ($p2, $c2) = rimage($fname, {palette=>1});
   is($p2->info, $p1->info);
   delta_ok($p2->unpdl, $p1->unpdl);
   is($c2->info, $c1->info);
   delta_ok($c2->unpdl, $c1->unpdl);
-  unlink $fname;
 }
 
 done_testing();

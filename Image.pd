@@ -872,9 +872,9 @@ pixels_to_pdl(PDL::IO::Image self, long x1=0, long x2=0, long y1=0, long y2=0)
                 for(y = 0; y < hp; y++) {
                   WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
                   for(x = 0; x < wp; x++) {
-                    pdata[y*wp + x]         = (PDL_Byte) ((bits[x+x1] & FI16_565_RED_MASK)   >> FI16_565_RED_SHIFT);
-                    pdata[y*wp + x + wxh]   = (PDL_Byte) ((bits[x+x1] & FI16_565_GREEN_MASK) >> FI16_565_GREEN_SHIFT);
-                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) ((bits[x+x1] & FI16_565_BLUE_MASK)  >> FI16_565_BLUE_SHIFT);
+                    pdata[y*wp + x]         = (PDL_Byte) (((bits[x+x1] & FI16_565_RED_MASK)   >> FI16_565_RED_SHIFT)   <<3);
+                    pdata[y*wp + x + wxh]   = (PDL_Byte) (((bits[x+x1] & FI16_565_GREEN_MASK) >> FI16_565_GREEN_SHIFT) <<2);
+                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) (((bits[x+x1] & FI16_565_BLUE_MASK)  >> FI16_565_BLUE_SHIFT)  <<3);
                   }
                 }
               }
@@ -882,9 +882,9 @@ pixels_to_pdl(PDL::IO::Image self, long x1=0, long x2=0, long y1=0, long y2=0)
                 for(y = 0; y < hp; y++) {
                   WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
                   for(x = 0; x < wp; x++) {
-                    pdata[y*wp + x]         = (PDL_Byte) ((bits[x+x1] & FI16_555_RED_MASK)   >> FI16_555_RED_SHIFT);
-                    pdata[y*wp + x + wxh]   = (PDL_Byte) ((bits[x+x1] & FI16_555_GREEN_MASK) >> FI16_555_GREEN_SHIFT);
-                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) ((bits[x+x1] & FI16_555_BLUE_MASK)  >> FI16_555_BLUE_SHIFT);
+                    pdata[y*wp + x]         = (PDL_Byte) (((bits[x+x1] & FI16_555_RED_MASK)   >> FI16_555_RED_SHIFT)   <<3);
+                    pdata[y*wp + x + wxh]   = (PDL_Byte) (((bits[x+x1] & FI16_555_GREEN_MASK) >> FI16_555_GREEN_SHIFT) <<3);
+                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) (((bits[x+x1] & FI16_555_BLUE_MASK)  >> FI16_555_BLUE_SHIFT)  <<3);
                   }
                 }
               }
@@ -1168,11 +1168,27 @@ DESTROY(self)
 ENDXS
 
 ############################################################### PM part
-pp_add_exported('rimage', 'wimage');
+pp_add_exported('', 'wimage');
+pp_add_exported('', 'rimage');
 pp_addpm( <<'ENDPM' );
 use strict;
 use warnings;
 use Carp;
+
+###XXX FIXME
+#sub import {
+#  my $package = shift;
+#  {
+#    no strict 'refs';
+#    *{'PDL::wimage'} = \&PDL::IO::Image::wimage;### if grep { /^(:all|wimage)$/ } @_;
+#  }
+#  __PACKAGE__->export_to_level(1, $package, @_) if @_;
+#}
+
+{
+  no strict 'refs';
+  *{'PDL::wimage'} = \&PDL::IO::Image::wimage;### if grep { /^(:all|wimage)$/ } @_;
+}
 
 sub _val2list {
   return @{$_[0]} if ref $_[0] eq 'ARRAY';

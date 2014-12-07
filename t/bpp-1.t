@@ -45,7 +45,6 @@ for my $file (<t/bpp-1/*.*>) {
   is($pix->info, 'PDL: Byte D [8,5]',     "regneg.info: $file");
   is($pix->sum, 20,                       "regneg.sum: $file");
   delta_ok($pix->unpdl, $expected_region, "regneg.pixels: $file");
-
 }
 
 { # special case: PSD has inverted 0/1 values
