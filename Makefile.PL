@@ -25,6 +25,7 @@ WriteMakefile(
         'Alien::FreeImage' => 0.006,
         'Test::More' => 0,
         'Test::Number::Delta' => '1.06',
+        'File::Temp' => 0,
   },
   CONFIGURE_REQUIRES => {
         'PDL' => 2.006,

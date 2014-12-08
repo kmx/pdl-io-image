@@ -872,9 +872,13 @@ pixels_to_pdl(PDL::IO::Image self, long x1=0, long x2=0, long y1=0, long y2=0)
                 for(y = 0; y < hp; y++) {
                   WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
                   for(x = 0; x < wp; x++) {
-                    pdata[y*wp + x]         = (PDL_Byte) (((bits[x+x1] & FI16_565_RED_MASK)   >> FI16_565_RED_SHIFT)   <<3);
-                    pdata[y*wp + x + wxh]   = (PDL_Byte) (((bits[x+x1] & FI16_565_GREEN_MASK) >> FI16_565_GREEN_SHIFT) <<2);
-                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) (((bits[x+x1] & FI16_565_BLUE_MASK)  >> FI16_565_BLUE_SHIFT)  <<3);
+                    PDL_Byte r5 = (PDL_Byte)((bits[x+x1] & FI16_565_RED_MASK)   >> FI16_565_RED_SHIFT)  ;
+                    PDL_Byte g6 = (PDL_Byte)((bits[x+x1] & FI16_565_GREEN_MASK) >> FI16_565_GREEN_SHIFT);
+                    PDL_Byte b5 = (PDL_Byte)((bits[x+x1] & FI16_565_BLUE_MASK)  >> FI16_565_BLUE_SHIFT) ;
+                    /* http://stackoverflow.com/questions/2442576/how-does-one-convert-16-bit-rgb565-to-24-bit-rgb888 */
+                    pdata[y*wp + x]         = (r5 << 3) | (r5 >> 2);
+                    pdata[y*wp + x + wxh]   = (g6 << 2) | (g6 >> 4);
+                    pdata[y*wp + x + 2*wxh] = (b5 << 3) | (b5 >> 2);
                   }
                 }
               }
@@ -882,9 +886,12 @@ pixels_to_pdl(PDL::IO::Image self, long x1=0, long x2=0, long y1=0, long y2=0)
                 for(y = 0; y < hp; y++) {
                   WORD *bits = (WORD*)FreeImage_GetScanLine(self->dib, h-y-1-y1);
                   for(x = 0; x < wp; x++) {
-                    pdata[y*wp + x]         = (PDL_Byte) (((bits[x+x1] & FI16_555_RED_MASK)   >> FI16_555_RED_SHIFT)   <<3);
-                    pdata[y*wp + x + wxh]   = (PDL_Byte) (((bits[x+x1] & FI16_555_GREEN_MASK) >> FI16_555_GREEN_SHIFT) <<3);
-                    pdata[y*wp + x + 2*wxh] = (PDL_Byte) (((bits[x+x1] & FI16_555_BLUE_MASK)  >> FI16_555_BLUE_SHIFT)  <<3);
+                    PDL_Byte r5 = (PDL_Byte)((bits[x+x1] & FI16_555_RED_MASK)   >> FI16_555_RED_SHIFT)  ;
+                    PDL_Byte g5 = (PDL_Byte)((bits[x+x1] & FI16_555_GREEN_MASK) >> FI16_555_GREEN_SHIFT);
+                    PDL_Byte b5 = (PDL_Byte)((bits[x+x1] & FI16_555_BLUE_MASK)  >> FI16_555_BLUE_SHIFT) ;
+                    pdata[y*wp + x]         = (r5 << 3) | (r5 >> 2);
+                    pdata[y*wp + x + wxh]   = (g5 << 3) | (g5 >> 2);
+                    pdata[y*wp + x + 2*wxh] = (b5 << 3) | (b5 >> 2);
                   }
                 }
               }
@@ -1168,8 +1175,9 @@ DESTROY(self)
 ENDXS
 
 ############################################################### PM part
-pp_add_exported('', 'wimage');
-pp_add_exported('', 'rimage');
+pp_bless('PDL');
+pp_add_exported('wimage');
+pp_add_exported('rimage');
 pp_addpm( <<'ENDPM' );
 use strict;
 use warnings;
@@ -1318,7 +1326,7 @@ my @C = (
 
 WriteConstants(NAME => 'PDL::IO::Image', NAMES => [ map { { macro=>1,type=>$_->{type},name=>$_->{name}} } @C ]);
 pp_addpm("### Constants");
-pp_add_exported(map {$_->{name}} @C);
+### pp_add_exported(map {$_->{name}} @C);
 pp_addpm("sub $_->{name}() { (constant('$_->{name}'))[1] }") for (@C);
 
 ############################################################### POD part
@@ -1543,3 +1551,5 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
 =cut
 ENDPOD
+
+pp_done();

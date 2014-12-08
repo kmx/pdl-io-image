@@ -4,7 +4,7 @@ use warnings;
 use Test::More;
 use PDL;
 use PDL::IO::Image;
-use Test::Number::Delta relative=>0.0001;
+use Test::Number::Delta within => 0.0000001;
 
 my $expected = [
   [0 .. 12],

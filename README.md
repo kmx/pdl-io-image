@@ -25,12 +25,8 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
     my $pixels_pdl = rimage($filename);
     #or
     my $pixels_pdl = rimage($filename, \%options);
-
-## rimage\_pal
-
-    my ($pixels_pdl, $palette_pdl) = rimage($filename);
     #or
-    my ($pixels_pdl, $palette_pdl) = rimage($filename, \%options);
+    my ($pixels_pdl, $palette_pdl) = rimage($filename, { palette=>1 });
 
 ## wimage
 
@@ -146,9 +142,17 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 
     $pimage->rescale($dst_width, $dst_height, $filter);
     #or
-    $pimage->rescale($dst_width);
+    $pimage->rescale($dst_width, 0);
     #or
-    $pimage->rescale(undef, $dst_height);
+    $pimage->rescale(0, $dst_height);
+
+## rescale\_pct
+
+    $pimage->rescale($dst_width_pct, $dst_height_pct, $filter);
+    #or
+    $pimage->rescale($dst_width_pct, 0);
+    #or
+    $pimage->rescale(0, $dst_height_pct);
 
 ## convert\_image\_type
 
@@ -187,10 +191,6 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
 ## format\_description
 
     my $desc = PDL::IO::Image->format_description($format);
-
-## format\_can
-
-    my $bool = PDL::IO::Image->format_can($format);
 
 ## format\_can\_read
 
