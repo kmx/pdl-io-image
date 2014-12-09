@@ -149,13 +149,13 @@ for my $file (<t/bpp-24/*.*>) {
   unless ($file =~ /\.(jng|jpg|jpeg|webp)$/i) {
     is($pix->sum, 41645,                    "reg.sum: $file");
     delta_ok($pix->unpdl, $expected_region, "reg.pixels: $file");
-  }  
+  }
   $pix = $pimage->pixels_to_pdl(3,-5,5,-6);
   is($pix->info, 'PDL: Byte D [9,12,3]',    "regneg.info: $file");
   unless ($file =~ /\.(jng|jpg|jpeg|webp)$/i) {
     is($pix->sum, 41645,                    "regneg.sum: $file");
     delta_ok($pix->unpdl, $expected_region, "regneg.pixels: $file");
-  }  
+  }
 }
 
 done_testing();

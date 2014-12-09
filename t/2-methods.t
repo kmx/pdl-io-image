@@ -15,24 +15,24 @@ use PDL::IO::Image;
   is($pimage->get_dots_per_meter_x, 2835, "get_dots_per_meter_x");
   is($pimage->get_dots_per_meter_y, 2835, "get_dots_per_meter_y");
   is($pimage->is_transparent, 1, "is_transparent");
-  
+
   $pimage->set_dots_per_meter_x(1400);
   $pimage->set_dots_per_meter_y(1400);
   is($pimage->get_dots_per_meter_x, 1400, "get_dots_per_meter_x/2");
   is($pimage->get_dots_per_meter_y, 1400, "get_dots_per_meter_y/2");
-  
+
   $pimage->rescale(170, 230);
   is($pimage->get_width,  170, "get_width/2");
   is($pimage->get_height, 230, "get_height/2");
-  
+
   $pimage->rescale(0, 23);
   is($pimage->get_width,  17, "get_width/3");
   is($pimage->get_height, 23, "get_height/3");
-  
+
   $pimage->rescale(170, 0);
   is($pimage->get_width,  170, "get_width/4");
   is($pimage->get_height, 230, "get_height/4");
-  
+
   $pimage->rescale_pct(10, 0);
   is($pimage->get_width,  17, "get_width/5");
   is($pimage->get_height, 23, "get_height/5");
@@ -44,15 +44,15 @@ use PDL::IO::Image;
   $pimage->rotate(90.0);
   is($pimage->get_width,  230, "get_width/7");
   is($pimage->get_height, 170, "get_height/7");
-  
+
   $pimage->flip_horizontal;
   $pimage->flip_vertical;
   is($pimage->get_width,  230, "get_width/8");
   is($pimage->get_height, 170, "get_height/8");
-  
+
   $pimage->tone_mapping(1, 2.2, 0.7);
   $pimage->adjust_colors(0.5, 1.5, 2.5, 1);
-  
+
   $pimage->convert_image_type("FLOAT");
   is($pimage->get_image_type, 'FLOAT', "get_image_type/2");
 }

@@ -714,7 +714,7 @@ rescale_pct(PDL::IO::Image self, double dst_width_pct=0, double dst_height_pct=0
     {
         int dst_height = (int)floor(0.5 + (double)FreeImage_GetHeight(self->dib) * dst_height_pct / 100.0);
         int dst_width  = (int)floor(0.5 + (double)FreeImage_GetWidth(self->dib)  * dst_width_pct  / 100.0);
-        
+
         if (dst_height<=0 && dst_width>0) {
           double ratio = (double)dst_width / (double)FreeImage_GetWidth(self->dib);
           dst_height   = (int)floor(0.5 + ratio * (double)FreeImage_GetHeight(self->dib));
@@ -807,7 +807,7 @@ pixels_to_pdl(PDL::IO::Image self, long x1=0, long x2=0, long y1=0, long y2=0)
         wp = (x2 - x1 + 1);
         hp = (y2 - y1 + 1);
         wxh = wp * hp;
-        
+
         if (x1>x2 || y1>y2 || x1<0 || y1<0 || x2<0 || y2<0 || wp>w || hp>h) {
           warn("FAIL: invalid region");
           XSRETURN_UNDEF;
@@ -1366,7 +1366,7 @@ XXX BITMAP, RGB, RGBA, FLOAT, DOUBLE, ...
  $pixels_pdl->wimage($filename);
  #or
  $pixels_pdl->wimage($filename, \%options);
- 
+
  wimage($pixels_pdl, $filename);
  #or
  wimage($pixels_pdl, $filename, \%options);

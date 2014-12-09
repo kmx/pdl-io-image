@@ -42,7 +42,7 @@ for my $p1 (@pdls) {
   is($p2->info, $p1->info);
   delta_ok($p2->sum, $p1->sum);
   delta_ok($p2->unpdl, $p1->unpdl);
-  
+
   is($im2->get_image_type,  $im1->get_image_type);
   is($im2->get_color_type,  $im1->get_color_type);
   is($im2->get_colors_used, $im1->get_colors_used);
@@ -58,17 +58,17 @@ for ([$pix256, $pal256], [$pix16, $pal16]) {
   my $fname = "$tmpdir/test-" . $im1->get_image_type . "_" . $im1->get_bpp . "_pal.tiff";
   $im1->save($fname);
   my $im2 = PDL::IO::Image->new_from_file($fname);
-  
+
   my $c2 = $im2->palette_to_pdl;
   is($c2->info, $c1->info);
   delta_ok($c2->sum, $c1->sum);
   delta_ok($c2->unpdl, $c1->unpdl);
-  
-  my $p2 = $im2->pixels_to_pdl; 
+
+  my $p2 = $im2->pixels_to_pdl;
   is($p2->info, $p1->info);
   delta_ok($p2->sum, $p1->sum);
   delta_ok($p2->unpdl, $p1->unpdl);
-  
+
   is($im2->get_image_type,  $im1->get_image_type);
   is($im2->get_color_type,  $im1->get_color_type);
   is($im2->get_colors_used, $im1->get_colors_used);
