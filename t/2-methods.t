@@ -45,13 +45,11 @@ use PDL::IO::Image;
   is($pimage->get_width,  230, "get_width/7");
   is($pimage->get_height, 170, "get_height/7");
 
-  $pimage->flip_horizontal;
-  $pimage->flip_vertical;
+  $pimage->flip_horizontal->flip_vertical;
   is($pimage->get_width,  230, "get_width/8");
   is($pimage->get_height, 170, "get_height/8");
 
-  $pimage->tone_mapping(1, 2.2, 0.7);
-  $pimage->adjust_colors(0.5, 1.5, 2.5, 1);
+  $pimage->tone_mapping(1, 2.2, 0.7)->adjust_colors(0.5, 1.5, 2.5, 1)->color_quantize->color_dither->color_threshhold;
 
   $pimage->convert_image_type("FLOAT");
   is($pimage->get_image_type, 'FLOAT', "get_image_type/2");

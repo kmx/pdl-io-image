@@ -14,7 +14,7 @@ Functional interface:
     say $pdl1->info;       # PDL: Byte D [400,300] ... width 400, height 300
     # do some hacking with $piddle
     wimage($pdl1, 'output.tiff');
-    # you can use wimage as PDL's method
+    # you can also use wimage as PDL's method
     $pdl1->wimage('another-output.png');
 
     my ($pixels, $palette) = rimage('picture-256colors.gif', { palette=>1 });
@@ -67,9 +67,9 @@ Object oriented (OO) interface:
     # export palette from PDL::IO::Image object content into a piddle
     my $pal_pdl = $pimage1->palette_to_pdl();
 
-    # create PDL::IO::Image object from PDL data
+    # let us have a piddle with pixel data
     my $wave_pixels = (sin(0.008 * xvals(2001, 2001)) * 128 + 127)->byte;
-    # here you can do some other tricks with $wave_pixels
+    # create PDL::IO::Image object from PDL piddle
     my $pimage2 = PDL::IO::Image->new_from_pdl($wave_pixels);
     # do some transformation with PDL::IO::Image object
     $pimage2->rotate(45);
@@ -89,7 +89,7 @@ Check also an excellent FreeImage documentation at [http://freeimage.sourceforge
 ## Supported file formats
 
 This module supports loading (["new\_from\_file"](#new_from_file) or ["rimage"](#rimage)) and saving (["save"](#save) or ["wimage"](#wimage))
-of the following formats (note that not all formats supports writing - see `R/W` column).
+of the following formats (note that not all formats support writing - see `R/W` column).
 
         BMP  R/W  Windows or OS/2 Bitmap [extensions: bmp]
         ICO  R/W  Windows Icon [extensions: ico]
@@ -170,21 +170,21 @@ Image type is important especially when you want to load image data from PDL pid
 (and later save to a file). Based on piddle size and piddle type the image type is detected (in ["new\_from\_pdl"](#new_from_pdl)
 and ["wimage"](#wimage)).
 
-    <w>...image width
-    <h>...image height
-    PDL Byte     [<w>,<h>]     BITMAP 1-/4-/8-bits per pixel
-    PDL Byte     [<w>,<h>,3]   BITMAP 24-bits per pixel (RGB)
-    PDL Byte     [<w>,<h>,4]   BITMAP 32-bits per pixel (RGBA)
-    PDL Ushort   [<w>,<h>]     UINT16
-    PDL Short    [<w>,<h>]     INT16
-    PDL LongLong [<w>,<h>]     UINT32 (unfortunately there is no PDL Ulong type)
-    PDL Long     [<w>,<h>]     INT32
-    PDL Float    [<w>,<h>]     FLOAT
-    PDL Double   [<w>,<h>]     DOUBLE
-    PDL Ushort   [<w>,<h>,3]   RGB16
-    PDL Ushort   [<w>,<h>,4]   RGBA16
-    PDL Float    [<w>,<h>,3]   RGBf
-    PDL Float    [<w>,<h>,4]   RGBAF
+    W .. image width
+    H .. image height
+    PDL Byte     [W,H]       BITMAP 1-/4-/8-bits per pixel
+    PDL Byte     [W,H,3]     BITMAP 24-bits per pixel (RGB)
+    PDL Byte     [W,H,4]     BITMAP 32-bits per pixel (RGBA)
+    PDL Ushort   [W,H]       UINT16
+    PDL Short    [W,H]       INT16
+    PDL LongLong [W,H]       UINT32 (unfortunately there is no PDL Ulong type)
+    PDL Long     [W,H]       INT32
+    PDL Float    [W,H]       FLOAT
+    PDL Double   [W,H]       DOUBLE
+    PDL Ushort   [W,H,3]     RGB16
+    PDL Ushort   [W,H,4]     RGBA16
+    PDL Float    [W,H,3]     RGBf
+    PDL Float    [W,H,4]     RGBAF
 
 **IMPORTANT** the strings with type name (e.g. `'BITMAP'`, `'UINT16'`, `'RGBAF'`) are used as a image type
 identifier in method ["convert\_image\_type"](#convert_image_type) and a return value of method ["get\_image\_type"](#get_image_type).
@@ -226,12 +226,17 @@ Items supported in **options** hash:
 
 - page
 
-    Load specific page from multi-page images (0-based index).
+    Index (0-based) of a specific page to load from multi-page images (TIFF, ICO or animated GIF).
 
 - flip
 
     Values `'H'`, `'V'` or `'HV'` specifying horizontal, vertical or horizontal+vertical flipping.
     Default: do not flip.
+
+- rotate
+
+    Optional floating point value with rotation angle (in degrees) - see ["rotate"](#rotate) method for more info.
+    Default: do not rotate.
 
 - convert\_image\_type
 
@@ -396,6 +401,8 @@ Export PDL::IO::Image object into a image file.
     #or
     $pimage->save($filename);
 
+Returns `$pimage` (self).
+
 `$filename` - output image file name.
 
 `$format` - string identifying file format (e.g. `'JPEG'` - for valid values see ["Supported file formats"](#supported-file-formats)),
@@ -491,6 +498,8 @@ Set the horizontal resolution, in pixels-per-meter.
 
     $pimage->set_dots_per_meter_x($res);
 
+Returns `$pimage` (self).
+
 ## get\_dots\_per\_meter\_y
 
 Returns the vertical resolution, in pixels-per-meter.
@@ -502,6 +511,8 @@ Returns the vertical resolution, in pixels-per-meter.
 Set the vertical resolution, in pixels-per-meter.
 
     $pimage->set_dots_per_meter_y($res);
+
+Returns `$pimage` (self).
 
 ## get\_color\_type
 
@@ -542,11 +553,15 @@ Does nothing on high color images.
 
     $pimage->set_transparent_index($index);
 
+Returns `$pimage` (self).
+
 ## flip\_horizontal
 
 Flip the image horizontally along the vertical axis.
 
     $pimage->flip_horizontal;
+
+Returns `$pimage` (self).
 
 ## flip\_vertical
 
@@ -554,11 +569,15 @@ Flip the image vertically along the horizontal axis.
 
     $pimage->flip_vertical;
 
+Returns `$pimage` (self).
+
 ## rotate
 
 Rotates image, the angle of counter clockwise rotation is specified by the `$angle` parameter in degrees.
 
     $pimage->rotate($angle);
+
+Returns `$pimage` (self).
 
 ## rescale
 
@@ -569,6 +588,8 @@ Performs resampling (scaling/zooming) of a greyscale or RGB(A) image to the desi
     $pimage->rescale($dst_width, 0);  # destination height is computed
     #or
     $pimage->rescale(0, $dst_height); # destination width is computed
+
+Returns `$pimage` (self).
 
 `$filter` - resampling filter identifier:
 
@@ -581,11 +602,13 @@ Performs resampling (scaling/zooming) of a greyscale or RGB(A) image to the desi
 
 ## rescale\_pct
 
-Performs resampling by giver percentage ratio.
+Performs resampling by given percentage ratio.
 
     $pimage->rescale($dst_width_pct, $dst_height_pct, $filter);
     #or
     $pimage->rescale($dst_pct);
+
+Returns `$pimage` (self).
 
 `$filter` - see ["rescale"](#rescale)
 
@@ -597,6 +620,8 @@ Converts an image to destination `$image_type`.
     #or
     $pimage->convert_image_type($image_type);
 
+Returns `$pimage` (self).
+
 `$image_type` - string identifying image type (e.g. `'BITMAP'`, `'UINT16'` - for valid values see ["Supported image types"](#supported-image-types)).
 
 ## adjust\_colors
@@ -604,6 +629,8 @@ Converts an image to destination `$image_type`.
 Adjusts an image's brightness, contrast and gamma as well as it may optionally invert the image within a single operation.
 
     $pimage->adjust_colors($brightness, $contrast, $gamma, $invert);
+
+Returns `$pimage` (self).
 
 `$brightness` - real value from range `[-100..100]`, value `0` means no change, less than 0 will make the
 image darker and greater than 0 will make the image brighter
@@ -616,11 +643,56 @@ darkens it, and greater than one lightens it
 
 `$invert` - `0` or `1` invert (or not) all pixels
 
+## color\_dither
+
+Converts a bitmap to 1-bit monochrome bitmap using a dithering algorithm.
+
+    $pimage->color_dither($algorithm);
+    #or
+    $pimage->color_dither();
+
+Returns `$pimage` (self).
+
+Possible `$algorithm` values:
+
+    0 .. Floyd & Steinberg error diffusion (DEFAULT)
+    1 .. Bayer ordered dispersed dot dithering (order 2 dithering matrix)
+    2 .. Bayer ordered dispersed dot dithering (order 3 dithering matrix)
+    3 .. Ordered clustered dot dithering (order 3 - 6x6 matrix)
+    4 .. Ordered clustered dot dithering (order 4 - 8x8 matrix)
+    5 .. Ordered clustered dot dithering (order 8 - 16x16 matrix)
+    6 .. Bayer ordered dispersed dot dithering (order 4 dithering matrix)
+
+## color\_threshhold
+
+Converts a bitmap to 1-bit monochrome bitmap using a `$threshold` between \[0..255\] (default is 127).
+
+    $pimage->color_threshhold($threshold);
+    #or
+    $pimage->color_threshhold();
+
+Returns `$pimage` (self).
+
+## color\_quantize
+
+    $pimage->color_quantize($quantize);
+    #or
+    $pimage->color_quantize();
+
+Returns `$pimage` (self).
+
+Possible `$quantize` values:
+
+    0 .. Xiaolin Wu color quantization algorithm
+    1 .. NeuQuant neural-net quantization algorithm by Anthony Dekker
+
 ## tone\_mapping
 
 Converts a High Dynamic Range image (48-bit RGB or 96-bit RGBF) to a 24-bit RGB image, suitable for display.
 
     $pimage->tone_mapping($tone_mapping_operator, $param1, $param2);
+
+Returns `$pimage` (self).
 
 `$tone_mapping_operator` - tone mapping operator identifier:
 

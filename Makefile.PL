@@ -18,18 +18,18 @@ WriteMakefile(
   LICENSE       => 'perl',
   PREREQ_PM     => {
         'PDL' => '2.006',
-        'Alien::FreeImage' => '0.010',
+        'Alien::FreeImage' => '0.011',
   },
   BUILD_REQUIRES => {
         'PDL' => '2.006',
-        'Alien::FreeImage' => '0.010',
+        'Alien::FreeImage' => '0.011',
         'Test::Number::Delta' => '1.06',
         'Test::More' => 0,
         'File::Temp' => 0,
   },
   CONFIGURE_REQUIRES => {
         'PDL' => '2.006',
-        'Alien::FreeImage' => '0.010',
+        'Alien::FreeImage' => '0.011',
   },
   META_MERGE   => {
       resources    => {

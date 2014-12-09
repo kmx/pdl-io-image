@@ -1,4 +1,10 @@
 Changes for PDL::IO::Image
 
+0.003   2014/12/09
+        - requires Alien-FreeImage-0.011 (-fPIC issue)
+        - void methods return self: $pimage->save("im.png")->save("im.bmp")->save("im.gif")
+        - new methods: color_dither, color_threshhold, color_quantize
+        - pod fixes
+
 0.002   2014/12/09
         - initial version
