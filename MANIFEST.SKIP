@@ -22,9 +22,10 @@ pod2htm*.tmp
 \.gz$
 ^MYMETA\.json$
 ^MYMETA\.yml$
-^Build$
-^Build\.bat$
+^Makefile$
 ^MANIFEST\.SKIP$
 ^tmp
 \.c$
 ^PDL-IO-Image*
+^Image\.pm
+^Image\.xs 

@@ -17,19 +17,19 @@ WriteMakefile(
   ABSTRACT      => 'Load/save bitmap from/to PDL (via FreeImage library)',
   LICENSE       => 'perl',
   PREREQ_PM     => {
-        'PDL' => 2.006,
-        'Alien::FreeImage' => 0.006,
+        'PDL' => '2.006',
+        'Alien::FreeImage' => '0.010',
   },
-  BUILD_REQUIRES     => {
-        'PDL' => 2.006,
-        'Alien::FreeImage' => 0.006,
-        'Test::More' => 0,
+  BUILD_REQUIRES => {
+        'PDL' => '2.006',
+        'Alien::FreeImage' => '0.010',
         'Test::Number::Delta' => '1.06',
+        'Test::More' => 0,
         'File::Temp' => 0,
   },
   CONFIGURE_REQUIRES => {
-        'PDL' => 2.006,
-        'Alien::FreeImage' => 0.006,
+        'PDL' => '2.006',
+        'Alien::FreeImage' => '0.010',
   },
   META_MERGE   => {
       resources    => {
