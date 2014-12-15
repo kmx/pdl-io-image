@@ -545,14 +545,14 @@ clone(PDL::IO::Image self)
         RETVAL
 
 void
-dump_bitmap(PDL::IO::Image self)
+dump_bitmap(PDL::IO::Image self, int target_bpp=0)
     PPCODE:
     {
       /* XXX dump_bitmap in undocumented/unofficial XXX */
       SV *bmp_sv, *pal_sv;
       unsigned char *bmp = NULL, *pal = NULL;
       unsigned w, h, bpp, cu, it, sz, szp, szl, y, i;
-      FIBITMAP *newdib = NULL;
+      FIBITMAP *newdib = NULL, *b = NULL;
 
       /* FIRST: we need FIT_BITMAP */
       it  = FreeImage_GetImageType(self->dib);
@@ -569,19 +569,24 @@ dump_bitmap(PDL::IO::Image self)
 
       /* SECOND: we only want 8/24/32-bpp output */
       bpp = FreeImage_GetBPP(newdib);
-      if (bpp==1 || bpp==4) {
-        FIBITMAP *b = FreeImage_ConvertTo8Bits(newdib);
-        if (b) {
-          FreeImage_Unload(newdib);
-          newdib = b;
-        }
+      if (target_bpp!=8 && target_bpp!=24 && target_bpp!=32) target_bpp = 0;
+      if (target_bpp==0 && (bpp==1 || bpp==4 || bpp==8))     target_bpp = 8;
+      if (target_bpp==0 && (bpp==16 || bpp==24))             target_bpp = 24;
+      if (target_bpp==0 && bpp>=32)                          target_bpp = 32;
+
+      if (target_bpp==8 && bpp!=8) {
+        /* XXX BEWARE: high-color bitmap (16, 24 or 32-bit) is converted into a greyscale bitmap */
+        b = FreeImage_ConvertTo8Bits(newdib);
       }
-      else if (bpp==16) {
-        FIBITMAP *b = FreeImage_ConvertTo24Bits(newdib);
-        if (b) {
-          FreeImage_Unload(newdib);
-          newdib = b;
-        }
+      else if (target_bpp==24 && bpp!=24) {
+        b = FreeImage_ConvertTo24Bits(newdib);
+      }
+      else if (target_bpp==32 && bpp!=32) {
+        b = FreeImage_ConvertTo32Bits(newdib);
+      }
+      if (b) {
+        FreeImage_Unload(newdib);
+        newdib = b;
       }
 
       bpp = FreeImage_GetBPP(newdib);
