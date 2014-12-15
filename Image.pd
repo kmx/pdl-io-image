@@ -179,50 +179,6 @@ BOOT:
 INCLUDE: const-xs.inc
 
 PDL::IO::Image
-new_from_fileXXX(char * class, char * filename, SV *f=NULL, int flags=0, int page=0)
-    CODE:
-    {
-        FIBITMAP *dib = NULL;
-        FREE_IMAGE_FORMAT fif = _sv2fif(f);
-
-        {
-          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFileType(filename, 0);
-          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
-          if (fif == FIF_UNKNOWN) croak("FAIL: unknown format '%s'", filename);
-
-          if (page > 0) {
-            FIMULTIBITMAP * multi = FreeImage_OpenMultiBitmap(fif, filename, FALSE, TRUE, FALSE, flags);
-            if (multi) {
-              int count = FreeImage_GetPageCount(multi);
-              if (page < count) {
-                FIBITMAP *page_dib = FreeImage_LockPage(multi, page);
-                dib = FreeImage_Clone(page_dib);
-                FreeImage_UnlockPage(multi, page_dib, FALSE);
-              }
-              else {
-                warn("invalid page index '%d' (max=%d)", page, count-1);
-              }
-              FreeImage_CloseMultiBitmap(multi, 0);
-            }
-            else {
-              warn("cannot open '%s' as multi page image", filename);
-            }
-          }
-          else {
-            dib = FreeImage_Load(fif, filename, flags);
-          }
-          if (dib == NULL) croak("FAIL: cannot load '%s'", filename);
-        }
-
-        Newz(0, RETVAL, 1, struct img_struct);
-        if (RETVAL == NULL) croak("FAIL: Newz failed");
-
-        RETVAL->dib = dib;
-    }
-    OUTPUT:
-        RETVAL
-
-PDL::IO::Image
 new_from_file(char * class, SV * input_sv, SV *f=NULL, int flags=0, int page=0)
     CODE:
     {
@@ -548,7 +504,6 @@ void
 dump_bitmap(PDL::IO::Image self, int target_bpp=0)
     PPCODE:
     {
-      /* XXX dump_bitmap in undocumented/unofficial XXX */
       SV *bmp_sv, *pal_sv;
       unsigned char *bmp = NULL, *pal = NULL;
       unsigned w, h, bpp, cu, it, sz, szp, szl, y, i;
@@ -877,13 +832,12 @@ rotate(PDL::IO::Image self, double angle, ...)
         FREE_IMAGE_TYPE fit = FreeImage_GetImageType(self->dib);
 
         if (items > 2) {
-          warn("XXX-BGCOLOR defined items=%d", items);
           switch(fit) {
             case FIT_BITMAP:
               switch(bpp) {
                 case 8:
                   {
-                    BYTE color = (BYTE)SvUV(ST(3));
+                    BYTE color = (BYTE)SvUV(ST(2));
                     newdib = FreeImage_Rotate(self->dib, angle, &color);
                   }
                   break;
@@ -891,10 +845,10 @@ rotate(PDL::IO::Image self, double angle, ...)
                 case 32:
                   {
                     RGBQUAD color = { 0, 0, 0, 0 };
-                    if (items >= 3) color.rgbRed      = (BYTE)SvUV(ST(3));
-                    if (items >= 4) color.rgbGreen    = (BYTE)SvUV(ST(4));
-                    if (items >= 5) color.rgbBlue     = (BYTE)SvUV(ST(5));
-                    if (items >= 6) color.rgbReserved = (BYTE)SvUV(ST(6));
+                    if (items >= 3) color.rgbRed      = (BYTE)SvUV(ST(2));
+                    if (items >= 4) color.rgbGreen    = (BYTE)SvUV(ST(3));
+                    if (items >= 5) color.rgbBlue     = (BYTE)SvUV(ST(4));
+                    if (items >= 6) color.rgbReserved = (BYTE)SvUV(ST(5));
                     newdib = FreeImage_Rotate(self->dib, angle, &color);
                   }
                   break;
@@ -905,7 +859,7 @@ rotate(PDL::IO::Image self, double angle, ...)
               break;
             case FIT_UINT16:
               {
-                WORD color = (WORD)SvUV(ST(3));;
+                WORD color = (WORD)SvUV(ST(2));;
                 newdib = FreeImage_Rotate(self->dib, angle, &color);
               }
               break;
@@ -913,16 +867,16 @@ rotate(PDL::IO::Image self, double angle, ...)
             case FIT_RGBA16:
               {
                 FIRGBA16 color = { 0, 0, 0, 0 };
-                if (items >= 3) color.red   = (WORD)SvUV(ST(3));
-                if (items >= 4) color.green = (WORD)SvUV(ST(4));
-                if (items >= 5) color.blue  = (WORD)SvUV(ST(5));
-                if (items >= 6) color.alpha = (WORD)SvUV(ST(6));
+                if (items >= 3) color.red   = (WORD)SvUV(ST(2));
+                if (items >= 4) color.green = (WORD)SvUV(ST(3));
+                if (items >= 5) color.blue  = (WORD)SvUV(ST(4));
+                if (items >= 6) color.alpha = (WORD)SvUV(ST(5));
                 newdib = FreeImage_Rotate(self->dib, angle, &color);
               }
               break;
             case FIT_FLOAT:
               {
-                float color = (float)SvNV(ST(3));
+                float color = (float)SvNV(ST(2));
                 newdib = FreeImage_Rotate(self->dib, angle, &color);
               }
               break;
@@ -930,10 +884,10 @@ rotate(PDL::IO::Image self, double angle, ...)
             case FIT_RGBAF:
               {
                 FIRGBAF color = { 0, 0, 0, 0 };
-                if (items >= 3) color.red   = (float)SvNV(ST(3));
-                if (items >= 4) color.green = (float)SvNV(ST(4));
-                if (items >= 5) color.blue  = (float)SvNV(ST(5));
-                if (items >= 6) color.alpha = (float)SvNV(ST(6));
+                if (items >= 3) color.red   = (float)SvNV(ST(2));
+                if (items >= 4) color.green = (float)SvNV(ST(3));
+                if (items >= 5) color.blue  = (float)SvNV(ST(4));
+                if (items >= 6) color.alpha = (float)SvNV(ST(5));
                 newdib = FreeImage_Rotate(self->dib, angle, &color);
               }
               break;
@@ -2129,7 +2083,10 @@ Create PDL::IO::Image object from image file.
  #or
  my $pimage = IO::PDL::Image->new_from_file($filename, $format, $format_flag, $page);
 
-C<$filename> - input image file name.
+ #if you have image file content in a scalar variable you can use
+ my $pimage = IO::PDL::Image->new_from_file(\$variable_with_image_data);
+
+C<$filename> - input image file name or a reference to scalar variable with imiga data.
 
 C<$format> - string identifying file format (e.g. C<'JPEG'> - for valid values see L</"Supported file formats">),
 default is C<'AUTO'> which means that format is auto detected (based on file header with fall-back to detection based
@@ -2175,6 +2132,12 @@ C<$pixels_pdl> - PDL piddle containing pixel data, dimensions and type must comp
 
 C<$palette_pdl> - Optional PDL piddle with color palette (has to be C<PDL Byte[3,N]> where 0 < N <= 256) containing RGB triplets.
 
+=head2 clone
+
+Create a copy (clone) of PDL::IO::Image object.
+
+ my $pimage_copy = $pimage->clone();
+
 =head2 pixels_to_pdl
 
 Export pixel data from PDL::IO::Image object into a piddle.
@@ -2205,9 +2168,14 @@ Export PDL::IO::Image object into a image file.
  #or
  $pimage->save($filename);
 
+ #you can save the image data to a variable like this
+ my $output_image;
+ $pimage->save(\$output_image, $format);
+ #NOTE: $format is mandatory in this case
+
 Returns C<$pimage> (self).
 
-C<$filename> - output image file name.
+C<$filename> - output image file name or a reference to perl scalar variable.
 
 C<$format> - string identifying file format (e.g. C<'JPEG'> - for valid values see L</"Supported file formats">),
 default is C<'AUTO'> which means that format is auto detected from extension of C<$filename>.
@@ -2259,6 +2227,19 @@ created by OR-ing some of available constants:
  PDL::IO::Image::TIFF_JPEG                 Save using JPEG compression (8-bit greyscale and 24-bit only)
  PDL::IO::Image::TIFF_LOGLUV               Save using LogLuv compression (only available with RGBF images
  PDL::IO::Image::TARGA_SAVE_RLE            Save with RLE compression
+
+=head2 dump_bitmap
+
+Extract raw bitmap data (+ do necessary image type and/or bpp conversions).
+
+ my ($width, $height, $bpp, $pixels, $palette) = $pimage->dump_bitmap;
+ #or
+ my ($width, $height, $bpp, $pixels, $palette) = $pimage->dump_bitmap($required_bpp);
+
+C<$pixels> and C<$palette> are raw data buffers containg sequence of RGB (RGBA) byte values.
+
+C<$required_bpp> can be 8, 24 or 32 - before dumping the image is converted to C<BITMAP> image type + colors depth is
+converted to given value. Default is autodetect the lowest sufficient bpp (from 8, 24, 32).
 
 =head2 get_image_type
 
@@ -2380,6 +2361,12 @@ Returns C<$pimage> (self).
 Rotates image, the angle of counter clockwise rotation is specified by the C<$angle> parameter in degrees.
 
  $pimage->rotate($angle);
+ #or
+ $pimage->rotate($angle, $bg_r, $bg_g, $bg_b, $bg_a);   # RGBA(F|16) images
+ $pimage->rotate($angle, $bg_r, $bg_g, $bg_b);          # RGB(F|16) images
+ $pimage->rotate($angle, $bg);                          # palette-based images
+
+You can specify optional backgroung color via C<$bg_r>, C<$bg_g>, C<$bg_b>, C<$bg_a> or C<$bg>.
 
 Returns C<$pimage> (self).
 
@@ -2446,6 +2433,70 @@ C<$gamma> - real value greater than 0, value of 1.0 leaves the image alone, less
 darkens it, and greater than one lightens it
 
 C<$invert> - C<0> or C<1> invert (or not) all pixels
+
+=head2 color_to_4bpp
+
+Converts a bitmap to 4 bits. If the bitmap was a high-color bitmap (16, 24 or 32-bit) or if it was
+a monochrome or greyscale bitmap (1 or 8-bit), the end result will be a greyscale bitmap,
+otherwise (1-bit palletised bitmaps) it will be a palletised bitmap.
+
+ $pimage->color_to_4bpp();
+
+Returns C<$pimage> (self).
+
+=head2 color_to_8bpp
+
+Converts a bitmap to 8 bits. If the bitmap was a high-color bitmap (16, 24 or 32-bit) or if it was
+a monochrome or greyscale bitmap (1 or 4-bit), the end result will be a greyscale bitmap,
+otherwise (1 or 4-bit palletised bitmaps) it will be a palletised bitmap.
+
+ $pimage->color_to_8bpp();
+
+Returns C<$pimage> (self).
+
+=head2 color_to_8bpp_grey
+
+Converts a bitmap to a 8-bit greyscale image with a linear ramp. Contrary to the
+FreeImage_ConvertTo8Bits function, 1-, 4- and 8-bit palletised images are correctly
+converted, as well as images with a FIC_MINISWHITE color type.
+
+ $pimage->color_to_8bpp_grey();
+
+Returns C<$pimage> (self).
+
+=head2 color_to_16bpp_555
+
+Converts a bitmap to 16 bits, where each pixel has a color pattern of 5 bits red, 5 bits green
+and 5 bits blue. One bit in each pixel is unused.
+
+ $pimage->color_to_16bpp_555();
+
+Returns C<$pimage> (self).
+
+=head2 color_to_16bpp_565
+
+Converts a bitmap to 16 bits, where each pixel has a color pattern of 5 bits red, 6 bits green
+and 5 bits blue.
+
+ $pimage->color_to_16bpp_565();
+
+Returns C<$pimage> (self).
+
+=head2 color_to_24bpp
+
+Converts a bitmap to 24 bits per pixel.
+
+ $pimage->color_to_24bpp();
+
+Returns C<$pimage> (self).
+
+=head2 color_to_32bpp
+
+Converts a bitmap to 32 bits per pixel.
+
+ $pimage->color_to_32bpp();
+
+Returns C<$pimage> (self).
 
 =head2 color_dither
 

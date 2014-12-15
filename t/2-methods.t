@@ -49,8 +49,17 @@ use PDL::IO::Image;
   is($pimage->get_width,  230, "get_width/8");
   is($pimage->get_height, 170, "get_height/8");
 
-  $pimage->tone_mapping(1, 2.2, 0.7)->adjust_colors(0.5, 1.5, 2.5, 1)->color_quantize->color_dither->color_threshhold;
+  $pimage->clone->tone_mapping(1, 2.2, 0.7)->adjust_colors(0.5, 1.5, 2.5, 1)->color_quantize->color_dither->color_threshhold;
+  
+  $pimage->clone->color_to_32bpp->color_to_24bpp->color_to_16bpp_555->color_to_16bpp_565->color_to_8bpp->color_to_8bpp_grey->color_to_4bpp;
+  my ($width, $height, $bpp, $pixels, $palette) = $pimage->clone->color_to_8bpp->dump_bitmap;
+  ok($width && $height && $bpp && $pixels && $palette, "dump_bitmap");
 
+  my $out;
+  $pimage->save(\$out, "PNG");
+  ok(length $out > 0, "save to scalar");
+  ok(PDL::IO::Image->new_from_file(\$out), "new from scalar");
+  
   $pimage->convert_image_type("FLOAT");
   is($pimage->get_image_type, 'FLOAT', "get_image_type/2");
 }
