@@ -179,38 +179,123 @@ BOOT:
 INCLUDE: const-xs.inc
 
 PDL::IO::Image
-new_from_file(char * class, char * filename, SV *f=NULL, int flags=0, int page=0)
+new_from_fileXXX(char * class, char * filename, SV *f=NULL, int flags=0, int page=0)
     CODE:
     {
         FIBITMAP *dib = NULL;
         FREE_IMAGE_FORMAT fif = _sv2fif(f);
-        if (fif == FIF_UNKNOWN) fif = FreeImage_GetFileType(filename, 0);
-        if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
-        if (fif == FIF_UNKNOWN) croak("FAIL: unknown format '%s'", filename);
 
-        if (page > 0) {
-          FIMULTIBITMAP * multi = FreeImage_OpenMultiBitmap(fif, filename, FALSE, TRUE, FALSE, flags);
-          if (multi) {
-            int count = FreeImage_GetPageCount(multi);
-            if (page < count) {
-              FIBITMAP *page_dib = FreeImage_LockPage(multi, page);
-              dib = FreeImage_Clone(page_dib);
-              FreeImage_UnlockPage(multi, page_dib, FALSE);
+        {
+          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFileType(filename, 0);
+          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
+          if (fif == FIF_UNKNOWN) croak("FAIL: unknown format '%s'", filename);
+
+          if (page > 0) {
+            FIMULTIBITMAP * multi = FreeImage_OpenMultiBitmap(fif, filename, FALSE, TRUE, FALSE, flags);
+            if (multi) {
+              int count = FreeImage_GetPageCount(multi);
+              if (page < count) {
+                FIBITMAP *page_dib = FreeImage_LockPage(multi, page);
+                dib = FreeImage_Clone(page_dib);
+                FreeImage_UnlockPage(multi, page_dib, FALSE);
+              }
+              else {
+                warn("invalid page index '%d' (max=%d)", page, count-1);
+              }
+              FreeImage_CloseMultiBitmap(multi, 0);
             }
             else {
-              warn("invalid page index '%d' (max=%d)", page, count-1);
+              warn("cannot open '%s' as multi page image", filename);
             }
-            FreeImage_CloseMultiBitmap(multi, 0);
           }
           else {
-            warn("cannot open '%s' as multi page image", filename);
+            dib = FreeImage_Load(fif, filename, flags);
           }
-        }
-        else {
-          dib = FreeImage_Load(fif, filename, flags);
+          if (dib == NULL) croak("FAIL: cannot load '%s'", filename);
         }
 
-        if (dib == NULL) croak("FAIL: cannot load '%s'", filename);
+        Newz(0, RETVAL, 1, struct img_struct);
+        if (RETVAL == NULL) croak("FAIL: Newz failed");
+
+        RETVAL->dib = dib;
+    }
+    OUTPUT:
+        RETVAL
+
+PDL::IO::Image
+new_from_file(char * class, SV * input_sv, SV *f=NULL, int flags=0, int page=0)
+    CODE:
+    {
+        FIBITMAP *dib = NULL;
+        FREE_IMAGE_FORMAT fif = _sv2fif(f);
+
+        if(SvROK(input_sv) && SvTYPE(SvRV(input_sv)) < SVt_PVAV) {
+          /* input_sv is a reference to scalar */
+          SV *input = SvRV(input_sv);
+          STRLEN input_len = 0;
+          BYTE *input_ptr = (BYTE *)SvPVbyte(input, input_len);
+          FIMEMORY *hmem = FreeImage_OpenMemory(input_ptr, input_len);
+
+          if (!hmem) croak("FAIL: FreeImage_OpenMemory failed");
+          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFileTypeFromMemory(hmem, 0);
+          if (fif == FIF_UNKNOWN) croak("FAIL: unknown format");
+
+          if (page > 0) {
+            FIMULTIBITMAP * multi = FreeImage_LoadMultiBitmapFromMemory(fif, hmem, flags);
+            if (multi) {
+              int count = FreeImage_GetPageCount(multi);
+              if (page < count) {
+                FIBITMAP *page_dib = FreeImage_LockPage(multi, page);
+                dib = FreeImage_Clone(page_dib);
+                FreeImage_UnlockPage(multi, page_dib, FALSE);
+              }
+              else {
+                warn("invalid page index '%d' (max=%d)", page, count-1);
+              }
+              FreeImage_CloseMultiBitmap(multi, 0);
+            }
+            else {
+              warn("FreeImage_OpenMultiBitmap failed");
+            }
+          }
+          else {
+            dib = FreeImage_LoadFromMemory(fif, hmem, flags);
+          }
+          if (dib == NULL) croak("FAIL: cannot load image");
+        }
+        else {
+          /* input_sv is a file name */
+          STRLEN flen = 0;
+          char * filename = SvPV(input_sv, flen);
+          if (!filename || flen<=0) croak("FAIL: invalid filename");
+          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFileType(filename, 0);
+          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
+          if (fif == FIF_UNKNOWN) croak("FAIL: unknown format '%s'", filename);
+
+          if (page > 0) {
+            FIMULTIBITMAP * multi = FreeImage_OpenMultiBitmap(fif, filename, FALSE, TRUE, FALSE, flags);
+            if (multi) {
+              int count = FreeImage_GetPageCount(multi);
+              if (page < count) {
+                FIBITMAP *page_dib = FreeImage_LockPage(multi, page);
+                dib = FreeImage_Clone(page_dib);
+                FreeImage_UnlockPage(multi, page_dib, FALSE);
+              }
+              else {
+                warn("invalid page index '%d' (max=%d)", page, count-1);
+              }
+              FreeImage_CloseMultiBitmap(multi, 0);
+            }
+            else {
+              warn("cannot open '%s' as multi page image", filename);
+            }
+          }
+          else {
+            dib = FreeImage_Load(fif, filename, flags);
+          }
+          if (dib == NULL) croak("FAIL: cannot load '%s'", filename);
+        }
+
         Newz(0, RETVAL, 1, struct img_struct);
         if (RETVAL == NULL) croak("FAIL: Newz failed");
 
@@ -445,6 +530,102 @@ new_from_pdl(char * class, pdl * pixels, pdl * palette=NULL)
     }
     OUTPUT:
         RETVAL
+
+PDL::IO::Image
+clone(PDL::IO::Image self)
+    CODE:
+    {
+      Newz(0, RETVAL, 1, struct img_struct);
+      if (RETVAL == NULL) croak("FAIL: Newz failed");
+      FIBITMAP *newdib = FreeImage_Clone(self->dib);
+      if (newdib == NULL) croak("FAIL: FreeImage_Clone failed");
+      RETVAL->dib = newdib;
+    }
+    OUTPUT:
+        RETVAL
+
+void
+dump_bitmap(PDL::IO::Image self)
+    PPCODE:
+    {
+      /* XXX dump_bitmap in undocumented/unofficial XXX */
+      SV *bmp_sv, *pal_sv;
+      unsigned char *bmp = NULL, *pal = NULL;
+      unsigned w, h, bpp, cu, it, sz, szp, szl, y, i;
+      FIBITMAP *newdib = NULL;
+
+      /* FIRST: we need FIT_BITMAP */
+      it  = FreeImage_GetImageType(self->dib);
+      if (it==FIT_RGB16 || it==FIT_RGBA16 || it==FIT_RGBF || it==FIT_RGBAF) {
+        newdib = FreeImage_ToneMapping(self->dib, FITMO_REINHARD05, 0, 0);
+      }
+      else {
+        newdib = FreeImage_ConvertToType(self->dib, FIT_BITMAP, 1);
+      }
+      if (!newdib) {
+        warn("dump_bitmap failed to convert image into a BITMAP");
+        XSRETURN_UNDEF;
+      }
+
+      /* SECOND: we only want 8/24/32-bpp output */
+      bpp = FreeImage_GetBPP(newdib);
+      if (bpp==1 || bpp==4) {
+        FIBITMAP *b = FreeImage_ConvertTo8Bits(newdib);
+        if (b) {
+          FreeImage_Unload(newdib);
+          newdib = b;
+        }
+      }
+      else if (bpp==16) {
+        FIBITMAP *b = FreeImage_ConvertTo24Bits(newdib);
+        if (b) {
+          FreeImage_Unload(newdib);
+          newdib = b;
+        }
+      }
+
+      bpp = FreeImage_GetBPP(newdib);
+      w   = FreeImage_GetWidth(newdib);
+      h   = FreeImage_GetHeight(newdib);
+      cu  = FreeImage_GetColorsUsed(newdib);
+      szp = (bpp/8);    /* pixel size */
+      szl = szp * w;    /* line size */
+      sz  = szl * h;    /* picture size */
+
+      if (bpp==32 || bpp==24 || bpp==8) {
+        bmp_sv = NEWSV(0, sz);
+        SvPOK_only(bmp_sv);
+        SvCUR_set(bmp_sv, sz);
+        bmp = (unsigned char *)SvPV_nolen(bmp_sv);
+        for(i = 0, y = 0; y < h; y++) {
+          BYTE *bits = FreeImage_GetScanLine(newdib, h-y-1);
+          Copy(bits, bmp + i, szl, BYTE);
+          i += szl;
+        }
+        XPUSHs(sv_2mortal(newSViv(w)));
+        XPUSHs(sv_2mortal(newSViv(h)));
+        XPUSHs(sv_2mortal(newSViv(bpp)));
+        XPUSHs(sv_2mortal(bmp_sv));
+        if (cu>0) {
+          RGBQUAD *p = FreeImage_GetPalette(newdib);
+          pal_sv = NEWSV(0, cu*3);
+          SvPOK_only(pal_sv);
+          SvCUR_set(pal_sv, cu*3);
+          pal = (unsigned char *)SvPV_nolen(pal_sv);
+          for (i = 0; i < cu; i++) {
+            pal[i*3]     = (unsigned char) p[i].rgbRed;
+            pal[i*3 + 1] = (unsigned char) p[i].rgbGreen;
+            pal[i*3 + 2] = (unsigned char) p[i].rgbBlue;
+          }
+          XPUSHs(sv_2mortal(pal_sv));
+        }
+      }
+      else {
+        warn("dump_bitmap: unexpected bpp");
+      }
+
+      FreeImage_Unload(newdib);
+    }
 
 const char*
 free_image_version(SV *class)
@@ -796,15 +977,43 @@ rescale_pct(PDL::IO::Image self, double dst_width_pct=0, double dst_height_pct=0
     }
 
 void
-save(PDL::IO::Image self, const char *filename, SV * f=NULL, int flags=0);
+save(PDL::IO::Image self, SV * destination, SV * f=NULL, int flags=0);
     PPCODE:
     {
         if (self->dib) {
+          FIMEMORY *hmem = NULL;
+          BYTE *mem_buffer = NULL;
+          DWORD size_in_bytes = 0;
           FREE_IMAGE_FORMAT fif = _sv2fif(f);
-          if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
-          if (fif == FIF_UNKNOWN) croak("FAIL: unspecified format");
-          if (!FreeImage_Save(fif, self->dib, filename, flags)) {
-            warn("FreeImage_Save failed (perhaps wrong format)");
+          FREE_IMAGE_TYPE fit = FreeImage_GetImageType(self->dib);
+
+          if(SvROK(destination) && SvTYPE(SvRV(destination)) < SVt_PVAV) {
+            /* destination is a reference to scalar */
+            SV *output = SvRV(destination);
+            BYTE *output_ptr = NULL;
+            if (fif == FIF_UNKNOWN) croak("FAIL: unspecified format");
+            hmem = FreeImage_OpenMemory(NULL, 0);
+            if (!FreeImage_SaveToMemory(fif, self->dib, hmem, flags)) {
+              warn("FreeImage_SaveToMemory failed (format '%d', image type '%d')", fif, fit);
+            }
+            FreeImage_AcquireMemory(hmem, &mem_buffer, &size_in_bytes);
+            sv_setpvn(output, "", 0);
+            output_ptr = SvGROW(output, size_in_bytes);
+            SvCUR_set(output, size_in_bytes);
+            SvPOK_only(output);
+            Copy(mem_buffer, output_ptr, size_in_bytes, BYTE);
+            FreeImage_CloseMemory(hmem);
+          }
+          else {
+            /* destination is a filename */
+            STRLEN flen = 0;
+            char * filename = SvPV(destination, flen);
+            if (!filename || flen<=0) croak("FAIL: invalid filename");
+            if (fif == FIF_UNKNOWN) fif = FreeImage_GetFIFFromFilename(filename);
+            if (fif == FIF_UNKNOWN) croak("FAIL: unspecified format");
+            if (!FreeImage_Save(fif, self->dib, filename, flags)) {
+              warn("FreeImage_Save failed (format '%d', image type '%d')", fif, fit);
+            }
           }
         }
         XPUSHs(ST(0)); /* return self */
