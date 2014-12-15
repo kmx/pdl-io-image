@@ -869,10 +869,84 @@ tone_mapping(PDL::IO::Image self, int tmo, double p1=0, double p2=0)
         XPUSHs(ST(0)); /* return self */
 
 void
-rotate(PDL::IO::Image self, double angle)
+rotate(PDL::IO::Image self, double angle, ...)
     PPCODE:
     {
-        FIBITMAP *newdib = FreeImage_Rotate(self->dib, angle, NULL); /* XXX maybe handle bgcolor */
+        FIBITMAP *newdib = NULL;
+        unsigned bpp = FreeImage_GetBPP(self->dib);
+        FREE_IMAGE_TYPE fit = FreeImage_GetImageType(self->dib);
+
+        if (items > 2) {
+          warn("XXX-BGCOLOR defined items=%d", items);
+          switch(fit) {
+            case FIT_BITMAP:
+              switch(bpp) {
+                case 8:
+                  {
+                    BYTE color = (BYTE)SvUV(ST(3));
+                    newdib = FreeImage_Rotate(self->dib, angle, &color);
+                  }
+                  break;
+                case 24:
+                case 32:
+                  {
+                    RGBQUAD color = { 0, 0, 0, 0 };
+                    if (items >= 3) color.rgbRed      = (BYTE)SvUV(ST(3));
+                    if (items >= 4) color.rgbGreen    = (BYTE)SvUV(ST(4));
+                    if (items >= 5) color.rgbBlue     = (BYTE)SvUV(ST(5));
+                    if (items >= 6) color.rgbReserved = (BYTE)SvUV(ST(6));
+                    newdib = FreeImage_Rotate(self->dib, angle, &color);
+                  }
+                  break;
+                default:
+                  /* warn("FAIL: do not know how to handle bpp '%d'", bpp); */
+                  break;
+              }
+              break;
+            case FIT_UINT16:
+              {
+                WORD color = (WORD)SvUV(ST(3));;
+                newdib = FreeImage_Rotate(self->dib, angle, &color);
+              }
+              break;
+            case FIT_RGB16:
+            case FIT_RGBA16:
+              {
+                FIRGBA16 color = { 0, 0, 0, 0 };
+                if (items >= 3) color.red   = (WORD)SvUV(ST(3));
+                if (items >= 4) color.green = (WORD)SvUV(ST(4));
+                if (items >= 5) color.blue  = (WORD)SvUV(ST(5));
+                if (items >= 6) color.alpha = (WORD)SvUV(ST(6));
+                newdib = FreeImage_Rotate(self->dib, angle, &color);
+              }
+              break;
+            case FIT_FLOAT:
+              {
+                float color = (float)SvNV(ST(3));
+                newdib = FreeImage_Rotate(self->dib, angle, &color);
+              }
+              break;
+            case FIT_RGBF:
+            case FIT_RGBAF:
+              {
+                FIRGBAF color = { 0, 0, 0, 0 };
+                if (items >= 3) color.red   = (float)SvNV(ST(3));
+                if (items >= 4) color.green = (float)SvNV(ST(4));
+                if (items >= 5) color.blue  = (float)SvNV(ST(5));
+                if (items >= 6) color.alpha = (float)SvNV(ST(6));
+                newdib = FreeImage_Rotate(self->dib, angle, &color);
+              }
+              break;
+            default:
+              /* warn("FAIL: do not know how to handle image type '%d'", fit); */
+              break;
+          }
+        }
+
+        if (!newdib) {
+          newdib = FreeImage_Rotate(self->dib, angle, NULL);
+        }
+
         if (newdib) {
           if (self->dib) FreeImage_Unload(self->dib);
           self->dib = newdib;

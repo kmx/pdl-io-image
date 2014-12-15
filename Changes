@@ -7,6 +7,7 @@ Changes for PDL::IO::Image
         - new methods: dump_bitmap, clone                                                       XXX-TODO add doc
         - save() method now accepts scalar ref (output is saved into perl variable)             XXX-TODO add doc
         - new_from_file() method now accepts scalar ref (image is loaded from perl variable)    XXX-TODO add doc
+        - rotate() method accepts bgcolor param(s)                                              XXX-TODO add doc
 
 0.003   2014/12/09
         - requires Alien-FreeImage-0.011 (-fPIC issue)
