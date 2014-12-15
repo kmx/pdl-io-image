@@ -929,6 +929,111 @@ color_quantize(PDL::IO::Image self, int quantize=FIQ_WUQUANT)
     }
 
 void
+color_to_4bpp(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertTo4Bits(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertTo4Bits failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
+color_to_8bpp(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertTo8Bits(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertTo8Bits failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
+color_to_8bpp_grey(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertToGreyscale(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertToGreyscale failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
+color_to_16bpp_555(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertTo16Bits555(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertTo16Bits555 failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
+color_to_16bpp_565(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertTo16Bits565(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertTo16Bits565 failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
+color_to_24bpp(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertTo24Bits(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertTo24Bits failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
+color_to_32bpp(PDL::IO::Image self)
+    PPCODE:
+    {
+        FIBITMAP *newdib = FreeImage_ConvertTo32Bits(self->dib);
+        if (newdib) {
+          if (self->dib) FreeImage_Unload(self->dib);
+          self->dib = newdib;
+        }
+        else {
+          warn("FreeImage_ConvertTo32Bits failed");
+        }
+        XPUSHs(ST(0)); /* return self */
+    }
+
+void
 rescale(PDL::IO::Image self, int dst_width=0, int dst_height=0, int filter=FILTER_CATMULLROM)
     PPCODE:
     {

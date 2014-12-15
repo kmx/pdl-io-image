@@ -1,6 +1,9 @@
 Changes for PDL::IO::Image
 
 0.004   2014/XX/XX
+        - new methods for color conversion:                                                     XXX-TODO add doc
+            color_to_4bpp, color_to_8bpp, color_to_8bpp_grey, 
+            color_to_16bpp_555, color_to_16bpp_565, color_to_24bpp, color_to_32bpp
         - new methods: dump_bitmap, clone                                                       XXX-TODO add doc
         - save() method now accepts scalar ref (output is saved into perl variable)             XXX-TODO add doc
         - new_from_file() method now accepts scalar ref (image is loaded from perl variable)    XXX-TODO add doc
