@@ -325,7 +325,10 @@ Create PDL::IO::Image object from image file.
     #or
     my $pimage = IO::PDL::Image->new_from_file($filename, $format, $format_flag, $page);
 
-`$filename` - input image file name.
+    #if you have image file content in a scalar variable you can use
+    my $pimage = IO::PDL::Image->new_from_file(\$variable_with_image_data);
+
+`$filename` - input image file name or a reference to scalar variable with imiga data.
 
 `$format` - string identifying file format (e.g. `'JPEG'` - for valid values see ["Supported file formats"](#supported-file-formats)),
 default is `'AUTO'` which means that format is auto detected (based on file header with fall-back to detection based
@@ -371,6 +374,12 @@ Create PDL::IO::Image object from PDL piddle with pixel (+ optional palette) dat
 
 `$palette_pdl` - Optional PDL piddle with color palette (has to be `PDL Byte[3,N]` where 0 < N <= 256) containing RGB triplets.
 
+## clone
+
+Create a copy (clone) of PDL::IO::Image object.
+
+    my $pimage_copy = $pimage->clone();
+
 ## pixels\_to\_pdl
 
 Export pixel data from PDL::IO::Image object into a piddle.
@@ -401,9 +410,14 @@ Export PDL::IO::Image object into a image file.
     #or
     $pimage->save($filename);
 
+    #you can save the image data to a variable like this
+    my $output_image;
+    $pimage->save(\$output_image, $format);
+    #NOTE: $format is mandatory in this case
+
 Returns `$pimage` (self).
 
-`$filename` - output image file name.
+`$filename` - output image file name or a reference to perl scalar variable.
 
 `$format` - string identifying file format (e.g. `'JPEG'` - for valid values see ["Supported file formats"](#supported-file-formats)),
 default is `'AUTO'` which means that format is auto detected from extension of `$filename`.
@@ -455,6 +469,19 @@ created by OR-ing some of available constants:
     PDL::IO::Image::TIFF_JPEG                 Save using JPEG compression (8-bit greyscale and 24-bit only)
     PDL::IO::Image::TIFF_LOGLUV               Save using LogLuv compression (only available with RGBF images
     PDL::IO::Image::TARGA_SAVE_RLE            Save with RLE compression
+
+## dump\_bitmap
+
+Extract raw bitmap data (+ do necessary image type and/or bpp conversions).
+
+    my ($width, $height, $bpp, $pixels, $palette) = $pimage->dump_bitmap;
+    #or
+    my ($width, $height, $bpp, $pixels, $palette) = $pimage->dump_bitmap($required_bpp);
+
+`$pixels` and `$palette` are raw data buffers containg sequence of RGB (RGBA) byte values.
+
+`$required_bpp` can be 8, 24 or 32 - before dumping the image is converted to `BITMAP` image type + colors depth is
+converted to given value. Default is autodetect the lowest sufficient bpp (from 8, 24, 32).
 
 ## get\_image\_type
 
@@ -576,6 +603,12 @@ Returns `$pimage` (self).
 Rotates image, the angle of counter clockwise rotation is specified by the `$angle` parameter in degrees.
 
     $pimage->rotate($angle);
+    #or
+    $pimage->rotate($angle, $bg_r, $bg_g, $bg_b, $bg_a);   # RGBA(F|16) images
+    $pimage->rotate($angle, $bg_r, $bg_g, $bg_b);          # RGB(F|16) images
+    $pimage->rotate($angle, $bg);                          # palette-based images
+
+You can specify optional backgroung color via `$bg_r`, `$bg_g`, `$bg_b`, `$bg_a` or `$bg`.
 
 Returns `$pimage` (self).
 
@@ -642,6 +675,70 @@ contrast and greater than 0 will increase the contrast of the image
 darkens it, and greater than one lightens it
 
 `$invert` - `0` or `1` invert (or not) all pixels
+
+## color\_to\_4bpp
+
+Converts a bitmap to 4 bits. If the bitmap was a high-color bitmap (16, 24 or 32-bit) or if it was
+a monochrome or greyscale bitmap (1 or 8-bit), the end result will be a greyscale bitmap,
+otherwise (1-bit palletised bitmaps) it will be a palletised bitmap.
+
+    $pimage->color_to_4bpp();
+
+Returns `$pimage` (self).
+
+## color\_to\_8bpp
+
+Converts a bitmap to 8 bits. If the bitmap was a high-color bitmap (16, 24 or 32-bit) or if it was
+a monochrome or greyscale bitmap (1 or 4-bit), the end result will be a greyscale bitmap,
+otherwise (1 or 4-bit palletised bitmaps) it will be a palletised bitmap.
+
+    $pimage->color_to_8bpp();
+
+Returns `$pimage` (self).
+
+## color\_to\_8bpp\_grey
+
+Converts a bitmap to a 8-bit greyscale image with a linear ramp. Contrary to the
+FreeImage\_ConvertTo8Bits function, 1-, 4- and 8-bit palletised images are correctly
+converted, as well as images with a FIC\_MINISWHITE color type.
+
+    $pimage->color_to_8bpp_grey();
+
+Returns `$pimage` (self).
+
+## color\_to\_16bpp\_555
+
+Converts a bitmap to 16 bits, where each pixel has a color pattern of 5 bits red, 5 bits green
+and 5 bits blue. One bit in each pixel is unused.
+
+    $pimage->color_to_16bpp_555();
+
+Returns `$pimage` (self).
+
+## color\_to\_16bpp\_565
+
+Converts a bitmap to 16 bits, where each pixel has a color pattern of 5 bits red, 6 bits green
+and 5 bits blue.
+
+    $pimage->color_to_16bpp_565();
+
+Returns `$pimage` (self).
+
+## color\_to\_24bpp
+
+Converts a bitmap to 24 bits per pixel.
+
+    $pimage->color_to_24bpp();
+
+Returns `$pimage` (self).
+
+## color\_to\_32bpp
+
+Converts a bitmap to 32 bits per pixel.
+
+    $pimage->color_to_32bpp();
+
+Returns `$pimage` (self).
 
 ## color\_dither
 
