@@ -22,27 +22,27 @@ WriteMakefile(
   },
   BUILD_REQUIRES => {
         'PDL' => '2.006',
-        'Alien::FreeImage' => '0.011',
+        'Alien::FreeImage' => '1.000',
         'Test::Number::Delta' => '1.06',
         'Test::More' => 0,
         'File::Temp' => 0,
   },
   CONFIGURE_REQUIRES => {
         'PDL' => '2.006',
-        'Alien::FreeImage' => '0.011',
+        'Alien::FreeImage' => '1.000',
   },
   META_MERGE   => {
       resources    => {
           repository   => 'https://github.com/kmx/pdl-io-image',
+          bugtracker   => 'https://github.com/kmx/pdl-io-image/issues',
       },
   },
   dist => {
-      ($^O eq 'MSWin32' ? (TAR => 'ptar', TARFLAGS => '-c -C -f') : ()),
+      ($^O eq 'MSWin32' ? (TAR => 'ptar', TARFLAGS => '-c -C -f') : (TARFLAGS => '--owner=0 --group=0 -cvf')),
       PREOP => '$(MKPATH) $(DISTVNAME)/GENERATED'
                . ' && $(PERL) "-MPDL::PP qw[PDL::IO::Image PDL::IO::Image $(DISTVNAME)/GENERATED/Image]" Image.pd'
                . ' && $(RM_F) $(DISTVNAME)/GENERATED/*.xs'
                . ' && perldoc -u $(DISTVNAME)/GENERATED/Image.pm | pod2markdown > README.md'
-               #. ' && pod2text $(DISTVNAME)/GENERATED/Image.pm > README'
   },
 );
 
