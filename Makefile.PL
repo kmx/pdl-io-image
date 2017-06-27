@@ -38,7 +38,7 @@ WriteMakefile(
       },
   },
   dist => {
-      ($^O eq 'MSWin32' ? (TAR => 'ptar', TARFLAGS => '-c -C -f') : (TARFLAGS => '--owner=0 --group=0 -cvf')),
+      ($^O eq 'MSWin32' ? (TAR => 'ptar', TARFLAGS => '-c -C -f') : (TARFLAGS => '--owner=0 --group=0 -cf')),
       PREOP => '$(MKPATH) $(DISTVNAME)/GENERATED'
                . ' && $(PERL) "-MPDL::PP qw[PDL::IO::Image PDL::IO::Image $(DISTVNAME)/GENERATED/Image]" Image.pd'
                . ' && $(RM_F) $(DISTVNAME)/GENERATED/*.xs'
@@ -47,12 +47,8 @@ WriteMakefile(
 );
 
 sub MY::postamble {
-        pdlpp_postamble($package) . <<'END'
-
-README.md:
-	$(PERL) "-MPDL::PP qw/PDL::IO::Image PDL::IO::Image TMP/" Image.pd
-	perldoc -u TMP.pm | pod2markdown > README.md
-	$(RM_F) TMP.pm TMP.xs
-
-END
+        my $postamble = pdlpp_postamble($package);
+        #hack: https://sourceforge.net/p/pdl/bugs/437/
+        $postamble =~ s/-e '.*?PDL::Doc::add_module.*?'/-e "exit if \$\$ENV{DESTDIR}; use PDL::Doc; eval { PDL::Doc::add_module(q{PDL::IO::Image}); }; "/s if $^O eq 'MSWin32';
+        return $postamble;
 }
